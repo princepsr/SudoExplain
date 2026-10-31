@@ -13,6 +13,7 @@ date: 2026-11-01
 description: One sentence shown in lists and search results.
 tags: java, concepts
 draft: false
+updated: 2026-11-05   # optional, set when you revise a post (feeds search engines)
 ---
 
 Your Markdown here.
@@ -46,6 +47,14 @@ If you use a project repo instead (`<user>.github.io/<repo>/`), set `"basePath":
 1. Buy the domain and add a file `static/CNAME` containing just the domain (for example `princesingh.dev`).
 2. Point DNS at GitHub Pages (see GitHub's custom domain docs), then set it under **Settings → Pages → Custom domain** and enable HTTPS.
 3. Update `url` in `site.config.json` to the new domain.
+
+## SEO
+
+Built in: unique title and description per page, canonical URLs, Open Graph and Twitter tags, JSON-LD (`WebSite` on the home page, `BlogPosting` on posts), a sitemap with last-modified dates, an RSS feed, `noindex` on the 404 page, and semantic HTML.
+
+For a link preview image on LinkedIn and X, put a 1200x630 PNG in `static/` and set `"ogImage": "/og.png"` in `site.config.json`.
+
+After going live (ideally on your own domain), add the site in Google Search Console and submit `sitemap.xml`.
 
 ## Layout
 

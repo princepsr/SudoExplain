@@ -352,14 +352,16 @@ function loadPosts() {
     .map((file) => {
       const { meta, body } = parseFrontMatter(readFileSync(join(dir, file), 'utf8'));
       const date = new Date(meta.date);
-      if (!meta.title || Number.isNaN(date.getTime())) {
-        throw new Error(`${file}: front matter needs "title" and a valid "date" (YYYY-MM-DD)`);
+      const updated = meta.updated ? new Date(meta.updated) : date;
+      if (!meta.title || Number.isNaN(date.getTime()) || Number.isNaN(updated.getTime())) {
+        throw new Error(`${file}: front matter needs "title" and a valid "date" (YYYY-MM-DD); "updated" is optional but must be a valid date`);
       }
       return {
         slug: meta.slug || file.replace(/\.md$/, ''),
         title: meta.title,
         description: meta.description || '',
         date,
+        updated,
         draft: meta.draft === 'true',
         tags: (meta.tags || '').split(',').map((t) => t.trim()).filter(Boolean),
         minutes: Math.max(1, Math.round(body.split(/\s+/).length / 220)),
@@ -385,10 +387,24 @@ const ICON_THEME =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
   '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>';
 
-function layout({ title, description, path, body, type = 'website', nav = '' }) {
-  const pageTitle = title ? `${title} · ${cfg.title}` : cfg.title;
+function layout({
+  title,
+  description,
+  path,
+  body,
+  type = 'website',
+  nav = '',
+  fullTitle = '',
+  published = '',
+  modified = '',
+  noindex = false,
+  jsonLd = null,
+}) {
+  const pageTitle = fullTitle || (title ? `${title} · ${cfg.title}` : cfg.title);
   const desc = description || cfg.description;
   const canonical = `${cfg.url}${cfg.basePath}${path}`;
+  const image = cfg.ogImage ? `${cfg.url}${cfg.basePath}${cfg.ogImage}` : '';
+  const structured = jsonLd ? JSON.stringify(jsonLd).replace(/</g, '\\u003c') : '';
   const cssHash = createHash('sha1').update(readFileSync(join(ROOT, 'assets', 'style.css'))).digest('hex').slice(0, 8);
   const link = (href, label) =>
     `<a href="${withBase(href)}"${nav === href ? ' aria-current="page"' : ''}>${label}</a>`;
@@ -408,11 +424,15 @@ function layout({ title, description, path, body, type = 'website', nav = '' }) 
 <link rel="canonical" href="${esc(canonical)}">
 <link rel="icon" href="${withBase('/favicon.svg')}" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="${esc(cfg.title)}" href="${withBase('/rss.xml')}">
-<meta property="og:title" content="${esc(title || cfg.title)}">
+<meta name="author" content="${esc(cfg.author)}">${noindex ? '\n<meta name="robots" content="noindex">' : ''}
+<meta property="og:site_name" content="${esc(cfg.title)}">
+<meta property="og:title" content="${esc(fullTitle || title || cfg.title)}">
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:type" content="${type}">
-<meta property="og:url" content="${esc(canonical)}">
-<meta name="twitter:card" content="summary">
+<meta property="og:url" content="${esc(canonical)}">${image ? `\n<meta property="og:image" content="${esc(image)}">` : ''}${published ? `\n<meta property="article:published_time" content="${published}">` : ''}${modified ? `\n<meta property="article:modified_time" content="${modified}">` : ''}
+<meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}">
+<meta name="twitter:title" content="${esc(fullTitle || title || cfg.title)}">
+<meta name="twitter:description" content="${esc(desc)}">${image ? `\n<meta name="twitter:image" content="${esc(image)}">` : ''}${structured ? `\n<script type="application/ld+json">${structured}</script>` : ''}
 <script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="stylesheet" href="${withBase('/assets/style.css')}?v=${cssHash}">
 </head>
@@ -434,7 +454,7 @@ ${body}
 </main>
 <footer class="site-footer">
   <div class="wrap">
-    <span>&copy; ${new Date().getUTCFullYear()} ${esc(cfg.author)}. Hand-built, no trackers.</span>
+    <span>&copy; ${new Date().getUTCFullYear()} ${esc(cfg.author)}</span>
     <span class="footer-links">${social.join('')}</span>
   </div>
 </footer>
@@ -466,7 +486,17 @@ function homePage(posts) {
   const latest = posts.slice(0, 5);
   return layout({
     title: '',
+    fullTitle: `${cfg.title}: ${cfg.tagline}`,
     path: '/',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: cfg.title,
+      url: `${cfg.url}${cfg.basePath}/`,
+      description: cfg.description,
+      inLanguage: cfg.lang,
+      author: { '@type': 'Person', name: cfg.author },
+    },
     body: `<div class="wrap">
   <section class="hero">
     <p class="eyebrow">${esc(cfg.eyebrow)}</p>
@@ -508,6 +538,22 @@ function postPage(post, newer, older) {
     path: `/posts/${post.slug}/`,
     nav: '/posts/',
     type: 'article',
+    published: isoDay(post.date),
+    modified: isoDay(post.updated),
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      headline: post.title,
+      description: post.description,
+      datePublished: isoDay(post.date),
+      dateModified: isoDay(post.updated),
+      url: `${cfg.url}${cfg.basePath}/posts/${post.slug}/`,
+      mainEntityOfPage: `${cfg.url}${cfg.basePath}/posts/${post.slug}/`,
+      keywords: post.tags.join(', '),
+      inLanguage: cfg.lang,
+      author: { '@type': 'Person', name: cfg.author },
+      publisher: { '@type': 'Person', name: cfg.author },
+    },
     body: `<article class="narrow">
   <header class="post-head">
     <p class="meta"><time datetime="${isoDay(post.date)}">${fmtDate(post.date)}</time> &middot; ${post.minutes} min read${post.draft ? ' &middot; <span class="draft">Draft</span>' : ''}</p>
@@ -572,6 +618,7 @@ function notFoundPage() {
   return layout({
     title: 'Not found',
     path: '/404.html',
+    noindex: true,
     body: `<div class="narrow">
   <header class="page-head"><h1>Page not found</h1><p>That page doesn't exist (or moved). <a href="${withBase('/')}">Go home</a> or browse <a href="${withBase('/posts/')}">all posts</a>.</p></header>
 </div>`,
@@ -607,9 +654,11 @@ ${items}
 `;
 }
 
-function sitemap(paths) {
+function sitemap(entries) {
   const base = cfg.url + cfg.basePath;
-  const urls = paths.map((p) => `  <url><loc>${base}${p}</loc></url>`).join('\n');
+  const urls = entries
+    .map((e) => `  <url><loc>${base}${e.path}</loc>${e.date ? `<lastmod>${isoDay(e.date)}</lastmod>` : ''}</url>`)
+    .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls}
@@ -647,7 +696,7 @@ function build() {
     }
   }
 
-  const paths = ['/', '/posts/', '/tags/'];
+  const paths = [{ path: '/' }, { path: '/posts/' }, { path: '/tags/' }];
   emit('/', homePage(posts));
   emit('/posts/', archivePage(posts));
   emit('/tags/', tagsIndexPage(tagMap));
@@ -655,17 +704,17 @@ function build() {
 
   posts.forEach((p, i) => {
     emit(`/posts/${p.slug}/`, postPage(p, posts[i - 1], posts[i + 1]));
-    if (!p.draft) paths.push(`/posts/${p.slug}/`);
+    if (!p.draft) paths.push({ path: `/posts/${p.slug}/`, date: p.updated });
   });
   for (const [slug, tag] of tagMap) {
     emit(`/tags/${slug}/`, tagPage(slug, tag));
-    paths.push(`/tags/${slug}/`);
+    paths.push({ path: `/tags/${slug}/` });
   }
 
   const about = loadPage('about');
   if (about) {
     emit('/about/', staticPage(about, '/about/'));
-    paths.push('/about/');
+    paths.push({ path: '/about/' });
   }
 
   const published = posts.filter((p) => !p.draft);
