@@ -22,6 +22,11 @@
   --font-read: var(--sans);
   --font-display: var(--sans);
   --wide: 64rem;
+  /* Every page starts the same distance below the header. Side panels (contents list, terminal) begin at
+     that same height and stick there, so they never slide when you start scrolling. */
+  --header-h: 3.8rem;
+  --top-gap: 1.35rem;
+  --sticky-top: calc(var(--header-h) + var(--top-gap));
   --read-width: 42rem;
   color-scheme: light;
 }
@@ -257,7 +262,7 @@ a:hover {
 
 /* ---------- Hero ---------- */
 .hero {
-  padding-block: 1.35rem 1rem;
+  padding-block: var(--top-gap) 1rem;
 }
 
 .eyebrow {
@@ -383,7 +388,7 @@ a:hover {
 
 /* ---------- Page headings ---------- */
 .page-head {
-  padding-block: 3.5rem 1rem;
+  padding-block: var(--top-gap) 1rem;
 }
 
 .page-head h1 {
@@ -428,9 +433,9 @@ a:hover {
 
   .toc-inner {
     position: sticky;
-    top: 5.5rem;
-    margin-top: 3.2rem;
-    max-height: calc(100vh - 7rem);
+    top: var(--sticky-top);
+    margin-top: var(--top-gap);
+    max-height: calc(100vh - var(--sticky-top) - 1.5rem);
     overflow-y: auto;
     padding-left: 1rem;
     border-left: 1px solid var(--line);
@@ -546,7 +551,7 @@ a:hover {
 }
 
 .post-head {
-  padding-block: 2.5rem 1.25rem;
+  padding-block: var(--top-gap) 1.25rem;
 }
 
 .post-head h1 {
@@ -1090,8 +1095,8 @@ mark {
      real terminal. */
   .terminal-wrap {
     position: sticky;
-    top: 5.5rem;
-    margin-top: 3.5rem;
+    top: var(--sticky-top);
+    margin-top: var(--top-gap);
     max-width: none;
   }
 
@@ -1204,6 +1209,19 @@ mark {
 
   .t-cursor {
     animation: t-blink 1.1s steps(1) infinite;
+  }
+}
+
+/* Short windows get a shorter terminal, so no lines are ever cut off: the extras drop out first. */
+@media (max-height: 859px) {
+  .t-x1 {
+    display: none;
+  }
+}
+
+@media (max-height: 699px) {
+  .t-x2 {
+    display: none;
   }
 }
 

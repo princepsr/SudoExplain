@@ -864,27 +864,36 @@ function aboutTerminal(posts, tagMap) {
     `<a href="${withBase('/rss.xml')}">rss.xml</a>`,
   ].filter(Boolean);
 
+  // `tier` marks lines that drop out on short windows so nothing is cut off: t-x2 goes first (under 700px
+  // tall), then t-x1 (under 860px tall). Unmarked lines always stay. An output may be { html, tier }.
   const lines = [];
-  const add = (cmd, ...outs) => lines.push([cmd, outs]);
+  const add = (cmd, outs, tier = '') => lines.push({ cmd, outs: [].concat(outs), tier });
   add('whoami', esc(slugify(cfg.author)));
-  add('cat mission.txt', esc(cfg.tagline));
+  add('cat mission.txt', esc(cfg.tagline), 't-x2');
   add('ls topics/', topics.length ? `<span class="t-links">${topicLinks}${more}</span>` : '(none yet)');
   if (published.length) {
     const minutes = published.reduce((sum, p) => sum + p.minutes, 0);
     const newest = published.reduce((a, b) => (b.updated > a ? b.updated : a), published[0].updated);
-    add('ls posts/ | wc -l', String(published.length));
+    add('ls posts/ | wc -l', String(published.length), 't-x2');
     add(
       'ls -t posts/ | head -3',
-      ...published.slice(0, 3).map((p) => `${isoDay(p.date)} <a href="${withBase(`/posts/${p.slug}/`)}">${esc(p.title)}</a>`),
+      published.slice(0, 3).map((p, i) => ({
+        html: `${isoDay(p.date)} <a href="${withBase(`/posts/${p.slug}/`)}">${esc(p.title)}</a>`,
+        tier: i ? 't-x1' : '',
+      })),
     );
-    add('cat reading-time', `${minutes} min of reading so far`);
-    add('cat last-updated', isoDay(newest));
+    add('cat reading-time', `${minutes} min of reading so far`, 't-x1');
+    add('cat last-updated', isoDay(newest), 't-x1');
   }
-  add('ls links/', `<span class="t-links">${links.join('')}</span>`);
+  add('ls links/', `<span class="t-links">${links.join('')}</span>`, 't-x2');
   add('sudo explain --topic anything', '<span class="t-ok">Permission granted. Doubt cleared.</span>');
 
+  const output = (o) => {
+    const { html, tier } = typeof o === 'string' ? { html: o, tier: '' } : o;
+    return `<p class="t-out${tier ? ` ${tier}` : ''}">${html}</p>`;
+  };
   const rows = lines
-    .map(([cmd, outs], i) => `<div class="t-line" style="--i:${i}"><p class="t-cmd">${esc(cmd)}</p>${outs.map((o) => `<p class="t-out">${o}</p>`).join('')}</div>`)
+    .map(({ cmd, outs, tier }, i) => `<div class="t-line${tier ? ` ${tier}` : ''}" style="--i:${i}"><p class="t-cmd">${esc(cmd)}</p>${outs.map(output).join('')}</div>`)
     .join('');
   const prompt = `<div class="t-line" style="--i:${lines.length}"><p class="t-cmd"><span class="t-cursor" aria-hidden="true"></span></p></div>`;
   return `<aside class="terminal-wrap" aria-label="This site, as a terminal session">
