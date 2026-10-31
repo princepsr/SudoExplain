@@ -50,9 +50,11 @@ If you use a project repo instead (`<user>.github.io/<repo>/`), set `"basePath":
 
 ## SEO
 
-Built in: unique title and description per page, canonical URLs, Open Graph and Twitter tags, JSON-LD (`WebSite` on the home page, `BlogPosting` on posts), a sitemap with last-modified dates, an RSS feed, `noindex` on the 404 page, and semantic HTML.
+Built in: unique title and description per page (a post without `description` gets an auto-excerpt from its first paragraph), canonical URLs, Open Graph and Twitter tags with a link-preview image, JSON-LD (`WebSite` on the home page, `BlogPosting` on posts), a sitemap with last-modified dates, an RSS feed, light/dark `theme-color`, and semantic HTML. Thin pages (404 and per-topic pages) are `noindex, follow` and left out of the sitemap.
 
-For a link preview image on LinkedIn and X, put a 1200x630 PNG in `static/` and set `"ogImage": "/og.png"` in `site.config.json`.
+The link-preview card is `static/og.png` (1200x630), referenced by `"ogImage"` in `site.config.json`. Replace the file to change it.
+
+**When you add your custom domain:** add `static/CNAME`, set `"basePath": ""` and change `"url"` in `site.config.json`. Canonical URLs, the sitemap, RSS, JSON-LD and the preview image URL all follow automatically.
 
 After going live (ideally on your own domain), add the site in Google Search Console and submit `sitemap.xml`.
 

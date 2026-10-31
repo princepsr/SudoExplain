@@ -343,6 +343,22 @@ function parseFrontMatter(raw) {
 
 // ---------- Content loading ----------
 
+// First prose paragraph, stripped of Markdown, trimmed to a search-snippet length.
+function excerpt(body, max = 160) {
+  const para = body
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .find((b) => /^[A-Za-z"'*_]/.test(b));
+  if (!para) return '';
+  const text = para
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[`*_]/g, '')
+    .replace(/\s+/g, ' ');
+  return text.length <= max ? text : `${text.slice(0, max - 1).replace(/\s+\S*$/, '')}…`;
+}
+
 function loadPosts() {
   const dir = join(ROOT, 'content', 'posts');
   if (!existsSync(dir)) return [];
@@ -359,7 +375,7 @@ function loadPosts() {
       return {
         slug: meta.slug || file.replace(/\.md$/, ''),
         title: meta.title,
-        description: meta.description || '',
+        description: meta.description || excerpt(body),
         date,
         updated,
         draft: meta.draft === 'true',
@@ -419,17 +435,20 @@ function layout({
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121214" media="(prefers-color-scheme: dark)">
 <title>${esc(pageTitle)}</title>
 <meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${esc(canonical)}">
 <link rel="icon" href="${withBase('/favicon.svg')}" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="${esc(cfg.title)}" href="${withBase('/rss.xml')}">
-<meta name="author" content="${esc(cfg.author)}">${noindex ? '\n<meta name="robots" content="noindex">' : ''}
+<meta name="author" content="${esc(cfg.author)}">${noindex ? '\n<meta name="robots" content="noindex, follow">' : ''}
 <meta property="og:site_name" content="${esc(cfg.title)}">
 <meta property="og:title" content="${esc(fullTitle || title || cfg.title)}">
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:type" content="${type}">
-<meta property="og:url" content="${esc(canonical)}">${image ? `\n<meta property="og:image" content="${esc(image)}">` : ''}${published ? `\n<meta property="article:published_time" content="${published}">` : ''}${modified ? `\n<meta property="article:modified_time" content="${modified}">` : ''}
+<meta property="og:url" content="${esc(canonical)}">${image ? `\n<meta property="og:image" content="${esc(image)}">\n<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n<meta property="og:image:alt" content="${esc(cfg.title)}: ${esc(cfg.tagline)}">` : ''}${published ? `\n<meta property="article:published_time" content="${published}">` : ''}${modified ? `\n<meta property="article:modified_time" content="${modified}">` : ''}
 <meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}">
 <meta name="twitter:title" content="${esc(fullTitle || title || cfg.title)}">
 <meta name="twitter:description" content="${esc(desc)}">${image ? `\n<meta name="twitter:image" content="${esc(image)}">` : ''}${structured ? `\n<script type="application/ld+json">${structured}</script>` : ''}
@@ -591,6 +610,7 @@ function tagPage(slug, tag) {
     title: `Topic: ${tag.name}`,
     description: `Posts about ${tag.name}.`,
     path: `/tags/${slug}/`,
+    noindex: true,
     nav: '/tags/',
     body: `<div class="narrow">
   <header class="page-head"><h1>${esc(tag.name)}</h1><p>${tag.posts.length} post${tag.posts.length === 1 ? '' : 's'}. <a href="${withBase('/tags/')}">All topics</a></p></header>
@@ -708,7 +728,6 @@ function build() {
   });
   for (const [slug, tag] of tagMap) {
     emit(`/tags/${slug}/`, tagPage(slug, tag));
-    paths.push({ path: `/tags/${slug}/` });
   }
 
   const about = loadPage('about');
