@@ -44,7 +44,7 @@ The server did not forget on purpose. Nothing in request 2 says it came from the
 
 ### Cookies in 30 seconds
 
-Both ideas usually ride on a **cookie**. A cookie is a small piece of text that a website asks your browser to store. After that, the browser attaches it automatically to every request to that website.
+A session ID usually rides on a **cookie**, and a JWT often does too, though it is also commonly sent in an `Authorization` header. A cookie is a small piece of text that a website asks your browser to store. After that, the browser attaches it automatically to every request to that website.
 
 ```text
 Response:   Set-Cookie: sid=9f3c2a...; HttpOnly; Secure; SameSite=Lax
@@ -103,9 +103,9 @@ Think of a festival wristband with your ticket details printed on it and a tampe
 
 A JWT is three chunks of text joined by dots: `header.payload.signature`.
 
-- The **header** says how it was signed
+- The **header** says how it was signed (not the same thing as an HTTP header, which comes later)
 - The **payload** holds the facts (called *claims*), such as who you are and when the token expires
-- The **signature** is the seal, made with a secret key that only the server holds
+- The **signature** is the seal, made with a secret key (a private key, or in simpler setups a shared secret) that only the login service holds
 
 ```json
 {
@@ -122,7 +122,7 @@ When the token comes back, the server checks the seal. If it matches, the facts 
 
 ```pseudocode
 # At login (once)
-facts = { sub: 42, role: "admin", expires: one hour from now }
+facts = { sub: "42", role: "admin", expires: one hour from now }
 token = sign(facts, privateKey)
 
 # On every request: fails if tampered with or expired
@@ -152,7 +152,7 @@ So the login service stamps tokens with its private key. Every other server hold
 
 ### One thing that surprises people
 
-A JWT is **signed, not encrypted**. Those two words sound alike but mean different things:
+A typical JWT is **signed, not encrypted**. (Encrypted variants exist but are rare.) Those two words sound alike but mean different things:
 
 - **Encrypted** means scrambled so that only the right key holder can read it, like a locked box.
 - **Signed** means readable by everyone, but protected against changes, like the stamped postcard.
@@ -307,7 +307,7 @@ The cheapest fix: tell the load balancer to **always send the same user to the s
 It works, but it has real weaknesses:
 
 - If Server A crashes or restarts, everyone stuck to it is logged out
-- Deploying a new version restarts the servers, so you log everyone out each time
+- Deploying a new version restarts the servers, so users on a restarted server can lose their sessions. Some servers keep them across a clean restart only if you configure it, and a crash loses them either way
 - The load can become uneven, because some users keep a server busy while others do not
 
 Sticky sessions are a bandage. They are fine for a small setup, and not much more.
@@ -420,7 +420,9 @@ A JWT is valid until it expires, and the server is not looking anything up, so i
 - a role is removed
 - a token is stolen
 
-The usual answer is to make tokens **short-lived** (5 to 15 minutes) and pair them with a **refresh token**. When the short token expires, the client trades the refresh token for a new one. Here is the catch: the refresh token is checked against a **server-side record**, so it can be revoked. You have rebuilt a small session, consulted every few minutes instead of every request.
+The usual answer is to make tokens **short-lived** (5 to 15 minutes) and pair them with a **refresh token**. When the short token expires, the client trades the refresh token for a new one. Usually the refresh token is checked against a **server-side record**, so it can be revoked. You have rebuilt a small session, consulted every few minutes instead of every request.
+
+Two more cautions. If you keep the token where the page's own JavaScript can read it (such as `localStorage`), a script-injection bug can steal it. An `HttpOnly` cookie stops scripts from reading it, though it then needs protection against forged requests from other sites (`SameSite` helps). And on every request the server must check the signature, the expiry and the algorithm it expects. Never accept a token that names its own algorithm as "none".
 
 So "stateless" never meant the state vanished. The honest version is: *JWTs keep state out of the hot path, and in exchange you get weaker, slower revocation.*
 
@@ -429,9 +431,9 @@ So "stateless" never meant the state vanished. The honest version is: *JWTs keep
 | Situation | Reach for |
 |---|---|
 | One web app, one backend, users log in through a browser | **Sessions.** Simple, easy to revoke, nothing clever to get wrong |
-| Several servers behind a load balancer | **Sessions in a shared store**, or tokens. Never sessions in one server's memory |
+| Several servers behind a load balancer | **Sessions in a shared store**, or tokens. Avoid sessions in one server's memory (sticky sessions are a stopgap) |
 | Several services that must trust the same login | **Tokens (JWT).** Each service verifies locally |
-| Mobile apps or third-party API clients | **Tokens.** There is no cookie jar to lean on |
+| Mobile apps or third-party API clients | **Tokens.** Cookies are awkward to share across apps and third-party clients |
 | You must be able to kick a user out right now | **Sessions**, or very short tokens with a revocable refresh token |
 
 If you are not sure, start with sessions in a shared store. Move to tokens when you actually feel the pain of sharing login state across services, not because a blog post said tokens are modern.
@@ -441,5 +443,5 @@ If you are not sure, start with sessions in a shared store. Move to tokens when 
 1. HTTP forgets you, so every request needs proof of who you are.
 2. A **session** keeps the memory on the server. A **JWT** puts the memory in a signed token.
 3. A session kept in **one server's memory** breaks the moment a load balancer sends you to a different server.
-4. Fix it by **moving the state out of the servers** (a shared store) or **out of the server side entirely** (a JWT), not by pinning users to machines.
+4. Fix it by **moving the state out of the servers** (a shared store) or **out of the server side entirely** (a JWT), rather than relying on pinning users to machines.
 5. "Stateless" does not mean the state disappeared. It means you chose where to keep it, and the moment you need to revoke something, it comes back.

@@ -6,6 +6,7 @@
 
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, watch, writeFileSync } from 'node:fs';
+import { renderDiagram } from './diagrams.mjs';
 import { createServer } from 'node:http';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -223,6 +224,7 @@ function highlight(code, lang) {
 
 const CALLOUT_LABELS = { note: 'Note', tip: 'Tip', warning: 'Warning', summary: 'In this post' };
 
+let diagramCount = 0;
 const FENCE = /^```\s*([\w+-]*)\s*$/;
 const HEADING = /^(#{1,6})\s+(.*?)\s*#*\s*$/;
 const RULE = /^(-{3,}|\*{3,}|_{3,})\s*$/;
@@ -310,6 +312,14 @@ function markdown(src) {
       i++;
       while (i < lines.length && !/^```\s*$/.test(lines[i])) buf.push(lines[i++]);
       i++;
+      if (m[1] === 'diagram') {
+        try {
+          out.push(renderDiagram(buf.join('\n'), ++diagramCount));
+        } catch (e) {
+          throw new Error(`${e.message}\n  in the diagram starting: ${buf.find((l) => l.trim()) || ''}`);
+        }
+        continue;
+      }
       out.push(`<pre><code>${highlight(buf.join('\n'), m[1])}</code></pre>`);
     } else if ((m = line.match(HEADING))) {
       out.push(heading(m[1].length, m[2]));
@@ -438,8 +448,10 @@ function writingSuggestions(meta, body) {
   if (proseWords / 220 > 20) out.push(`about ${Math.round(proseWords / 220)} minutes of reading; consider splitting into a series`);
   if (/^## .+\n\s*\n##? /m.test(body)) out.push('a "##" heading is followed straight by another heading, so a section is empty');
   if (/!\[\]\(/.test(body)) out.push('an image has no alt text; describe it between the [ ] brackets');
+  if (proseWords > 900 && !/^```diagram|<figure>/m.test(body)) out.push('no diagram: add a ```diagram block that draws the failure (see docs/writing.md)');
   if (/<div class="diagram">/.test(body)) out.push('a diagram has no phone version; add an upright one in <div class="diagram diagram-tall"> (see docs/writing.md)');
-  if (/\{\{|\[[A-Z][^\]\n]{10,}\](?!\()/.test(body)) out.push('template placeholder text like [..] is still in the post');
+  const outsideCode = body.replace(/^```[^\n]*\n[\s\S]*?\n```[ \t]*$/gm, '').replace(/`[^`\n]*`/g, '');
+  if (/\{\{|\[[A-Z][^\]\n]{10,}\](?!\()/.test(outsideCode)) out.push('template placeholder text like [..] is still in the post');
   return out;
 }
 
@@ -570,7 +582,9 @@ function layout({
   scripts = [],
   card = '',
 }) {
-  const pageTitle = fullTitle || (title ? `${title} · ${cfg.title}` : cfg.title);
+  // Search results cut titles near 60 characters, so the site name is added only when it still fits.
+  const withBrand = `${title} · ${cfg.title}`;
+  const pageTitle = fullTitle || (title ? (withBrand.length <= 60 ? withBrand : title) : cfg.title);
   const desc = description || cfg.description;
   const canonical = `${cfg.url}${cfg.basePath}${path}`;
   const cardPath = card || cfg.ogImage;

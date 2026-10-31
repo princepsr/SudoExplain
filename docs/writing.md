@@ -93,7 +93,47 @@ Always write meaningful alt text. It is used by screen readers and by search eng
 
 Posts with three or more `##` sections get a sticky contents list in the right-hand column on screens 1100px and wider. The article starts at the same left edge as every other page. The entry for the section being read is highlighted as you scroll. On narrower screens and phones the same list appears as a collapsed "On this page" box under the post header.
 
-To add a diagram, wrap it in a figure with a caption (keep blank lines out of the block). Give it two versions so it is readable everywhere: a wide one for screens, and an upright one that the site shows on phones (640px and narrower):
+## Diagrams from text (the easy way)
+
+Most diagrams in this blog are written as a `diagram` block. You describe it in a few lines and the site draws **two** pictures from it: a wide one for laptops, and an upright one for phones (640px and narrower). Both follow the light and dark themes, and you never write any SVG.
+
+There are two kinds. A **sequence** shows who talks to whom over time, which suits requests, retries and races:
+
+````text
+```diagram
+type: sequence
+alt: One sentence that describes the picture for screen readers.
+caption: Figure 1. What the reader should notice.
+actors: Client | Server | Card provider
+Client -> Server: POST /charge
+Card provider --> Server: ok
+Server -x Client: reply lost
+note Client: it sees a timeout, so it retries
+Server -> Card provider: charge $50 again !
+```
+````
+
+- `->` is a solid arrow, `-->` a dashed one (a reply), and `-x` an arrow that never arrives.
+- A trailing ` !` draws that line (or note) in the accent colour. Use it for the thing that goes wrong.
+- `note Name: text` puts a note under one actor, and `note all: text` spans the diagram.
+- Keep to 2 to 4 actors with short names, and keep each line short. Phones are narrow.
+
+A **flow** shows boxes joined by arrows, side by side on a laptop and one above the other on a phone:
+
+````text
+```diagram
+type: flow
+alt: A request holds a connection during a slow call until the pool is empty.
+caption: Figure 2. The pool runs dry.
+Request borrows a connection -> Slow remote call (2 s) -> Pool is empty -> Requests time out !
+```
+````
+
+Use at most 5 boxes, with a few words in each. The `alt` line is required, because it is the text a screen reader speaks. `node build.mjs --check` suggests a diagram for any longer post that has none.
+
+## Diagrams as raw SVG (when you need more control)
+
+To add a hand-drawn diagram, wrap it in a figure with a caption (keep blank lines out of the block). Give it two versions so it is readable everywhere: a wide one for screens, and an upright one that the site shows on phones (640px and narrower):
 
 ```html
 <figure>

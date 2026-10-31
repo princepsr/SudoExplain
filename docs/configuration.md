@@ -43,7 +43,7 @@ Nothing here needs configuring.
 
 | Feature | Detail |
 |---|---|
-| Titles and descriptions | Unique per page. A post without `description` gets an excerpt of its first paragraph |
+| Titles and descriptions | Unique per page. A post without `description` gets an excerpt of its first paragraph. The site name is added to the page title only when the result stays within 60 characters, because search results cut longer titles |
 | Canonical URLs | Every page declares its own canonical address |
 | Open Graph and Twitter tags | Title, description, type, site name, and the preview image with its size and alt text |
 | Structured data (JSON-LD) | `WebSite` on the home page, `BlogPosting` on posts (headline, dates, author, keywords) |

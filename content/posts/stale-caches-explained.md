@@ -1,7 +1,7 @@
 ---
-title: Stale caches explained: why two servers show different data
+title: Stale cache and cache stampede: why servers disagree
 date: 2026-11-01
-description: Why two servers can give two different answers to the same question, how to spot a stale cache, and three ways to fix it.
+description: Why two servers give different answers, how to spot a stale cache, three ways to fix it, and how a cache stampede can follow.
 tags: caching, system-design, scaling, web
 ---
 
@@ -177,29 +177,33 @@ When users say "I see old data, but only sometimes", suspect this. Here is how t
 
 ```bash
 for i in 1 2 3 4 5 6; do
-  curl -si https://example.com/api/products/42 | grep -E "X-Served-By|price"
+  curl -si https://example.com/api/products/42 | grep -iE "x-served-by|price"
 done
 ```
 
 **3. Read the output.** A stale cache looks like this:
 
 ```text
-X-Served-By: server-a
+x-served-by: server-a
 {"id":42,"price":25}
-X-Served-By: server-b
+x-served-by: server-b
 {"id":42,"price":20}
-X-Served-By: server-a
+x-served-by: server-a
 {"id":42,"price":25}
-X-Served-By: server-b
+x-served-by: server-b
 {"id":42,"price":20}
 ```
 
+(Over HTTP/2 and HTTP/3, header names are sent in lowercase, which is why `grep -i` ignores the case.)
+
 The same address gives two different answers, and the answer depends on **which server replied**. Server A always says 25. Server B always says 20. That pattern is the fingerprint of a stale cache in one server's memory.
 
-**4. Check the source of truth.** Look at the price in the database itself. If it says 25, the data is fine and one of the notebooks is out of date.
+**4. Check the source of truth.** That is the one place that holds the real data, here the database. Look at the price there. If it says 25, the data is fine and one of the notebooks is out of date.
 
 > [!NOTE]
 > If the answers are random and do **not** line up with the server names, the cause is something else, such as two requests racing each other. The giveaway for a stale cache is that each server is consistently wrong in its own way.
+>
+> Also check for caches in front of your servers, in the browser or a CDN (a network of servers that keeps copies of pages close to users). Look at the `Cache-Control` and `Age` response headers. A response with a large `Age` came from such a cache, not from your app.
 
 ## Fix 1: let copies expire
 
@@ -214,6 +218,8 @@ function getPrice(productId):
     cache[productId] = { price: price, expiresAt: now + 60 seconds }
     return price
 ```
+
+(`setPrice` must store an expiry time in the same way when it writes to the cache.)
 
 Server B's $20 now lives for at most a minute. After that it fetches 25 from the database and the servers agree again.
 
@@ -231,7 +237,7 @@ if cache.version != current:                  # someone changed it elsewhere
     cache.version = current
 ```
 
-Checking one small number is cheap. Reloading the whole product on every request is not. The version number tells you exactly when a reload is needed, so stale answers disappear, and you only pay for the full read when something really changed.
+Checking one small number is cheap. Reloading the whole product on every request is not. The version number tells you exactly when a reload is needed, so stale answers become much rarer, and you only pay for the full read when something really changed.
 
 **The cost:** every request still makes one small trip to the database to read the version. You save the heavy work but not the trip. If the trip itself is the problem, you need the next fix.
 
@@ -262,7 +268,7 @@ Picture the product page everyone is viewing. Its cached copy expires at 12:00:0
 
 The database slows down under the sudden load. Requests start timing out, so nobody manages to refill the cache, and the pile-up grows. This is called a **cache stampede**: a crowd of requests all rushing to rebuild the same missing copy at once. The cache was meant to protect the database, and at that moment it does the opposite.
 
-**How you would notice.** The database is calm, then load spikes sharply at the instant popular items expire, and responses get slow for a while. Charts of database load show regular spikes, spaced one TTL apart.
+**How you would notice.** The database is calm, then load spikes sharply at the instant popular items expire, and responses get slow for a while. If traffic is steady, charts of database load show regular spikes, spaced one TTL apart.
 
 There are two common fixes, and real systems usually use both.
 
@@ -290,6 +296,8 @@ function getPrice(productId):
 ttl = 60 seconds + random(0 to 10 seconds)        # "jitter"
 ```
 
+The lock must be shared by all servers, for example kept in the shared store. A lock held in one server's memory only protects that server. Deleting a popular copy (Fix 3) causes the same stampede, so the lock helps there too. After a deletion there is no old copy to serve, so the other requests must wait for the rebuild.
+
 The cost of the lock is a little more code, and one more thing that can go wrong, such as a lock never released after a crash, so locks are given their own short expiry. The cost of jitter is nothing at all. That is why the TTL in real systems almost always carries some randomness.
 
 ## Which should you use?
@@ -297,7 +305,7 @@ The cost of the lock is a little more code, and one more thing that can go wrong
 | Situation | Reach for |
 |---|---|
 | Being a little out of date is harmless (counters, trending lists) | **Expiry (TTL).** Simple, nothing clever to get wrong |
-| The data must be correct, and one small database read per request is fine | **Version number.** Always correct, still cheaper than reloading |
+| The data must be correct, and one small database read per request is fine | **Version number.** Correct as of the version check, still cheaper than reloading |
 | Many servers, very high traffic, and each trip to the database hurts | **Invalidation or a shared cache,** plus a TTL as a backstop |
 | You are not sure whether you even need a cache | **No cache.** Measure first, because a cache you do not need is a bug waiting to happen |
 
