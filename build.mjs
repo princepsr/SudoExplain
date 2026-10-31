@@ -545,7 +545,18 @@ function archivePage(posts) {
   });
 }
 
+// "On this page" list built from the h2/h3 headings; only for posts with at least three sections.
+function tableOfContents(html) {
+  const items = [...html.matchAll(/<h([23]) id="([^"]+)">(?:<a class="anchor"[^>]*>#<\/a>)?(.*?)<\/h\1>/g)].map(
+    ([, level, id, inner]) => ({ level: Number(level), id, text: inner.replace(/<[^>]+>/g, '') }),
+  );
+  if (items.filter((i) => i.level === 2).length < 3) return '';
+  const links = items.map((i) => `<li class="toc-l${i.level}"><a href="#${i.id}">${i.text}</a></li>`).join('');
+  return `<aside class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul>${links}</ul></aside>`;
+}
+
 function postPage(post, newer, older) {
+  const toc = tableOfContents(post.html);
   const pager = `<nav class="pager" aria-label="More posts">
   ${older ? `<a class="prev" href="${withBase(`/posts/${older.slug}/`)}"><small>&larr; Older</small>${esc(older.title)}</a>` : '<span></span>'}
   ${newer ? `<a class="next" href="${withBase(`/posts/${newer.slug}/`)}"><small>Newer &rarr;</small>${esc(newer.title)}</a>` : ''}
@@ -573,7 +584,8 @@ function postPage(post, newer, older) {
       author: { '@type': 'Person', name: cfg.author },
       publisher: { '@type': 'Person', name: cfg.author },
     },
-    body: `<article class="narrow">
+    body: `<div class="post-layout${toc ? ' has-toc' : ''}">
+<article class="post">
   <header class="post-head">
     <p class="meta"><time datetime="${isoDay(post.date)}">${fmtDate(post.date)}</time> &middot; ${post.minutes} min read${post.draft ? ' &middot; <span class="draft">Draft</span>' : ''}</p>
     <h1>${esc(post.title)}</h1>
@@ -584,7 +596,9 @@ function postPage(post, newer, older) {
 ${post.html}
   </div>
   ${pager}
-</article>`,
+</article>
+${toc}
+</div>`,
   });
 }
 
@@ -774,7 +788,7 @@ const MIME = {
 };
 
 function serve(port = 4000) {
-  createServer((req, res) => {
+  const respond = (req, res) => {
     const urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     let file = resolve(DIST, `.${urlPath}`);
 
@@ -789,6 +803,16 @@ function serve(port = 4000) {
     }
     res.writeHead(200, { 'Content-Type': MIME[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(readFileSync(file));
+  };
+
+  createServer((req, res) => {
+    try {
+      respond(req, res);
+    } catch (err) {
+      // dist/ is briefly missing while a rebuild runs, or the URL is malformed: answer instead of crashing
+      console.warn(`Request ${req.url} failed: ${err.message}`);
+      res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Rebuilding, refresh in a moment.');
+    }
   }).listen(port, () => console.log(`Serving http://localhost:${port}  (drafts visible, rebuilds on save)`));
 
   let timer;
