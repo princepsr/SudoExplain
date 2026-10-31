@@ -22,7 +22,7 @@ tags: authentication, web, system-design
 | `title` | Yes | Page heading and browser title |
 | `date` | Yes | Publish date, `YYYY-MM-DD`. Posts are sorted newest first |
 | `description` | No | Shown in lists and search results. Aim for under 160 characters. If omitted, the first paragraph is used |
-| `tags` | No | Comma-separated. Each tag gets its own topic page |
+| `tags` | No | Comma-separated. Each tag gets its own topic page. Tags are shown with a capital first letter and spaces instead of hyphens (`system-design` shows as "System design"). Write an acronym or a brand with its capitals (`AI`, `JWT`, `iOS`) and it is shown exactly that way. Each topic uses one spelling site-wide, and a spelling you capitalised on purpose wins over the automatic one |
 | `draft` | No | `true` hides the post from the published site. Drafts are visible in `--serve` and `--drafts` builds |
 | `updated` | No | `YYYY-MM-DD`. Set it when you revise a post. Readers see "Updated …" next to the date, and search engines see the new date |
 | `slug` | No | Overrides the filename in the URL |

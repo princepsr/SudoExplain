@@ -21,7 +21,8 @@
     ...entry,
     lowTitle: entry.title.toLowerCase(),
     lowDescription: entry.description.toLowerCase(),
-    lowTags: entry.tags.join(' ').toLowerCase(),
+    // Tags are shown as "System design" but readers may type "system-design", so match both spellings.
+    lowTags: entry.tags.flatMap((t) => [t, t.replace(/\s+/g, '-')]).join(' ').toLowerCase(),
     lowText: entry.text.toLowerCase(),
   });
 

@@ -56,7 +56,7 @@ draft: true
 | `title` | Plain and specific, ideally under 60 characters so search results do not cut it off |
 | `date` | The publish date, as `YYYY-MM-DD` |
 | `description` | One sentence under 160 characters saying what the reader will understand. It appears in lists and in search results |
-| `tags` | Two to four topics, separated by commas. Look at the Topics page and reuse existing tags, because related posts are matched by tag |
+| `tags` | Two to four topics, separated by commas. Look at the Topics page and reuse existing tags, because related posts are matched by tag. Write plain words in lowercase (`networking`, `system-design`) and the site capitalises them for you. Write acronyms in capitals (`AI`, `JWT`), because `ai` would be shown as "Ai" |
 | `draft` | Leave `true` while writing. Delete the line when you are ready to publish |
 
 There are a few more optional fields, such as `updated`. They are listed in [writing.md](writing.md).

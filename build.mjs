@@ -24,6 +24,15 @@ let cfg = {};
 const esc = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// How a tag is shown: "system-design" becomes "System design". A tag that already contains a capital
+// (AI, JWT, iOS) is the author's deliberate spelling and is kept exactly as written. The web address
+// still comes from slugify(), so "System design" and "system-design" are the same topic.
+const formatTag = (tag) => {
+  if (/[A-Z]/.test(tag)) return tag;
+  const spaced = tag.replace(/-/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+};
+
 const slugify = (s) =>
   String(s)
     .toLowerCase()
@@ -485,7 +494,8 @@ function loadPosts() {
         date,
         updated,
         draft: meta.draft === 'true',
-        tags: (meta.tags || '').split(',').map((t) => t.trim()).filter(Boolean),
+        rawTags: (meta.tags || '').split(',').map((t) => t.trim()).filter(Boolean),
+        tags: [],
         minutes: Math.max(1, Math.round(body.split(/\s+/).length / 220)),
         suggestions: CHECK ? writingSuggestions(meta, body) : [],
         html: markdown(body),
@@ -493,7 +503,23 @@ function loadPosts() {
     });
 
   assertUniqueAddresses(posts);
+  applyTagSpelling(posts);
   return posts.filter((p) => DRAFTS || !p.draft).sort((a, b) => b.date - a.date);
+}
+
+// Gives each topic one spelling across the whole site. A spelling with a capital that the author typed
+// on purpose (AI, JWT) beats the automatic one, so "ai" in one post still shows as "AI" if another says "AI".
+function applyTagSpelling(posts) {
+  const chosen = new Map();
+  for (const p of posts) {
+    for (const raw of p.rawTags) {
+      const slug = slugify(raw);
+      const deliberate = /[A-Z]/.test(raw);
+      const current = chosen.get(slug);
+      if (!current || (deliberate && !current.deliberate)) chosen.set(slug, { name: formatTag(raw), deliberate });
+    }
+  }
+  for (const p of posts) p.tags = [...new Set(p.rawTags.map((raw) => chosen.get(slugify(raw)).name))];
 }
 
 // A post's slug and its old-address aliases are all web addresses under /posts/, so none may repeat.
