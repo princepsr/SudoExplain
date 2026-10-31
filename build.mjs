@@ -53,6 +53,163 @@ function inline(src) {
   return t.replace(/\u0000(\d+)\u0000/g, (_, i) => stash[i]);
 }
 
+// ---------- Syntax highlighting (build time, no client JS) ----------
+// One combined regex per language. Rules are tried in listed order at each position, so
+// comments and strings must come before keywords. Rule patterns must not contain capture groups.
+
+const words = (list) => String.raw`\b(?:${list.trim().split(/\s+/).join('|')})\b`;
+
+const P = {
+  slashComment: String.raw`//.*|/\*[\s\S]*?\*/`,
+  hashComment: String.raw`#.*`,
+  dq: String.raw`"(?:\\.|[^"\\\n])*"`,
+  sq: String.raw`'(?:\\.|[^'\\\n])*'`,
+  tpl: '`(?:\\\\.|[^`\\\\])*`',
+  number: String.raw`\b0x[\da-fA-F]+\b|\b\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?[fFdDlL]?\b`,
+  type: String.raw`\b[A-Z]\w*\b`,
+  fn: String.raw`\b[a-z_]\w*(?=\()`,
+};
+
+const JAVA_KW = `abstract assert boolean break byte case catch char class const continue default do double else enum extends
+  final finally float for if implements import instanceof int interface long native new package private protected public
+  record return short static super switch synchronized this throw throws transient try var void volatile while yield sealed permits`;
+const JS_KW = `async await break case catch class const continue debugger default delete do else enum export extends finally for
+  from function if import in instanceof let new of return static super switch this throw try typeof var void while with yield
+  interface type implements readonly public private protected abstract as`;
+const PY_KW = `and as assert async await break class continue def del elif else except finally for from global if import in is
+  lambda nonlocal not or pass raise return try while with yield`;
+const SH_KW = `if then elif else fi for while until do done case esac function in select export local return exit echo cd source alias unset read set`;
+const SQL_KW = `select from where join left right inner outer full cross on group by order having insert into values update set delete
+  create table alter drop index primary key foreign references and or not null as distinct limit offset union all case when then
+  else end in like is exists between asc desc with default unique constraint view`;
+
+const LANGS = {
+  java: {
+    rules: [
+      ['comment', P.slashComment],
+      ['string', String.raw`"""[\s\S]*?"""|${P.dq}|${P.sq}`],
+      ['annotation', String.raw`@\w+`],
+      ['keyword', words(JAVA_KW)],
+      ['literal', words('true false null')],
+      ['number', P.number],
+      ['type', P.type],
+      ['fn', P.fn],
+    ],
+  },
+  js: {
+    rules: [
+      ['comment', P.slashComment],
+      ['string', `${P.dq}|${P.sq}|${P.tpl}`],
+      ['keyword', words(JS_KW)],
+      ['literal', words('true false null undefined NaN Infinity')],
+      ['number', P.number],
+      ['type', P.type],
+      ['fn', P.fn],
+    ],
+  },
+  python: {
+    rules: [
+      ['comment', P.hashComment],
+      ['string', String.raw`"""[\s\S]*?"""|'''[\s\S]*?'''|${P.dq}|${P.sq}`],
+      ['annotation', String.raw`@\w+`],
+      ['keyword', words(PY_KW)],
+      ['literal', words('True False None')],
+      ['number', P.number],
+      ['type', P.type],
+      ['fn', P.fn],
+    ],
+  },
+  bash: {
+    rules: [
+      ['comment', P.hashComment],
+      ['string', `${P.dq}|${P.sq}`],
+      ['variable', String.raw`\$(?:\{[^}]*\}|[\w@#?!*]+)`],
+      ['keyword', words(SH_KW)],
+      ['attr', String.raw`(?<=\s)--?[A-Za-z][\w-]*`],
+    ],
+  },
+  sql: {
+    flags: 'gmi',
+    rules: [
+      ['comment', String.raw`--.*|/\*[\s\S]*?\*/`],
+      ['string', String.raw`'(?:''|[^'])*'`],
+      ['keyword', words(SQL_KW)],
+      ['number', String.raw`\b\d+(?:\.\d+)?\b`],
+      ['fn', String.raw`\b[a-z_]\w*(?=\()`],
+    ],
+  },
+  json: {
+    rules: [
+      ['prop', String.raw`"(?:\\.|[^"\\\n])*"(?=\s*:)`],
+      ['string', P.dq],
+      ['literal', words('true false null')],
+      ['number', String.raw`-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b`],
+    ],
+  },
+  yaml: {
+    rules: [
+      ['comment', String.raw`(?<=^|\s)#.*`],
+      ['prop', String.raw`^[ \t]*(?:-[ \t]+)?[\w./-]+(?=:)`],
+      ['string', `${P.dq}|${P.sq}`],
+      ['literal', words('true false null yes no on off')],
+      ['number', String.raw`\b\d+(?:\.\d+)?\b`],
+    ],
+  },
+  markup: {
+    rules: [
+      ['comment', String.raw`<!--[\s\S]*?-->`],
+      ['string', String.raw`(?<==)(?:"[^"]*"|'[^']*')`],
+      ['tag', String.raw`</?[A-Za-z][\w:-]*|/?>`],
+      ['attr', String.raw`[\w:-]+(?==)`],
+    ],
+  },
+};
+
+const LANG_ALIASES = {
+  java: 'java',
+  javascript: 'js', js: 'js', jsx: 'js', mjs: 'js', typescript: 'js', ts: 'js', tsx: 'js',
+  python: 'python', py: 'python',
+  bash: 'bash', sh: 'bash', shell: 'bash', zsh: 'bash',
+  sql: 'sql',
+  json: 'json',
+  yaml: 'yaml', yml: 'yaml',
+  html: 'markup', xml: 'markup', svg: 'markup',
+};
+
+const compiledLangs = new Map();
+
+function compileLang(name) {
+  if (!compiledLangs.has(name)) {
+    const def = LANGS[name];
+    const re = new RegExp(def.rules.map(([, src]) => `(${src})`).join('|'), def.flags || 'gm');
+    compiledLangs.set(name, { re, classes: def.rules.map(([cls]) => cls) });
+  }
+  return compiledLangs.get(name);
+}
+
+// Returns HTML-escaped code, wrapped in <span class="tok-*"> for recognised tokens.
+// Time: O(n) in code length. Unknown languages are escaped and returned unhighlighted.
+function highlight(code, lang) {
+  const name = LANG_ALIASES[lang.toLowerCase()];
+  if (!name) return esc(code);
+
+  const { re, classes } = compileLang(name);
+  re.lastIndex = 0;
+  let out = '';
+  let last = 0;
+  let m;
+  while ((m = re.exec(code))) {
+    if (m[0] === '') {
+      re.lastIndex++;
+      continue;
+    }
+    const group = m.findIndex((g, i) => i > 0 && g !== undefined) - 1;
+    out += `${esc(code.slice(last, m.index))}<span class="tok-${classes[group]}">${esc(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+  return out + esc(code.slice(last));
+}
+
 const FENCE = /^```\s*([\w+-]*)\s*$/;
 const HEADING = /^(#{1,6})\s+(.*?)\s*#*\s*$/;
 const RULE = /^(-{3,}|\*{3,}|_{3,})\s*$/;
@@ -141,7 +298,7 @@ function markdown(src) {
       while (i < lines.length && !/^```\s*$/.test(lines[i])) buf.push(lines[i++]);
       i++;
       const label = m[1] ? ` data-lang="${esc(m[1])}"` : '';
-      out.push(`<pre${label}><code>${esc(buf.join('\n'))}</code></pre>`);
+      out.push(`<pre${label}><code>${highlight(buf.join('\n'), m[1])}</code></pre>`);
     } else if ((m = line.match(HEADING))) {
       out.push(heading(m[1].length, m[2]));
       i++;
@@ -471,6 +628,7 @@ function emit(path, html) {
 function build() {
   const started = Date.now();
   cfg = JSON.parse(readFileSync(join(ROOT, 'site.config.json'), 'utf8'));
+  if (SERVE) cfg.basePath = '';
 
   rmSync(DIST, { recursive: true, force: true });
   mkdirSync(DIST, { recursive: true });

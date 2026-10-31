@@ -8,6 +8,13 @@
   --accent: #d9480f;
   --accent-soft: #ffe8d9;
   --code-bg: #f3f0e8;
+  --tok-comment: #766f63;
+  --tok-string: #2a7a4b;
+  --tok-number: #b45309;
+  --tok-keyword: #b02a68;
+  --tok-type: #1d6fa5;
+  --tok-fn: #6d4cc0;
+  --tok-meta: #8a6d1a;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -26,6 +33,13 @@
     --accent: #ff8a5c;
     --accent-soft: #3a2218;
     --code-bg: #1b1b1f;
+    --tok-comment: #8a8a92;
+    --tok-string: #8fd19e;
+    --tok-number: #ffb86b;
+    --tok-keyword: #ff8fb8;
+    --tok-type: #7cc4ff;
+    --tok-fn: #c9b5ff;
+    --tok-meta: #e6c777;
     color-scheme: dark;
   }
 }
@@ -39,6 +53,13 @@
   --accent: #ff8a5c;
   --accent-soft: #3a2218;
   --code-bg: #1b1b1f;
+  --tok-comment: #8a8a92;
+  --tok-string: #8fd19e;
+  --tok-number: #ffb86b;
+  --tok-keyword: #ff8fb8;
+  --tok-type: #7cc4ff;
+  --tok-fn: #c9b5ff;
+  --tok-meta: #e6c777;
   color-scheme: dark;
 }
 
@@ -516,6 +537,41 @@ a:hover {
   background: none;
   border: 0;
   font-size: inherit;
+}
+
+/* Syntax tokens (classes emitted by build.mjs) */
+.tok-comment {
+  color: var(--tok-comment);
+  font-style: italic;
+}
+
+.tok-string {
+  color: var(--tok-string);
+}
+
+.tok-number,
+.tok-literal {
+  color: var(--tok-number);
+}
+
+.tok-keyword,
+.tok-tag {
+  color: var(--tok-keyword);
+}
+
+.tok-type,
+.tok-prop,
+.tok-variable {
+  color: var(--tok-type);
+}
+
+.tok-fn {
+  color: var(--tok-fn);
+}
+
+.tok-annotation,
+.tok-attr {
+  color: var(--tok-meta);
 }
 
 .copy {

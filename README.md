@@ -20,6 +20,8 @@ Your Markdown here.
 
 Supported: headings, paragraphs, **bold**, *italic*, `code`, links, images, lists (nested), tables, blockquotes, fenced code blocks, horizontal rules, and raw HTML blocks (handy for inline SVG diagrams). Set `draft: true` to hide a post from the published site.
 
+Code blocks are highlighted at build time (no client JS) when you tag the fence with a language: `java`, `javascript`/`js`/`ts`, `python`, `bash`/`sh`, `sql`, `json`, `yaml`, `html`/`xml`. Other tags (or none) render as plain, escaped text. To add a language, add an entry to `LANGS` and `LANG_ALIASES` in `build.mjs`.
+
 Put post images in `static/` (copied to the site root) and reference them as `/my-image.png`.
 
 ## Preview locally

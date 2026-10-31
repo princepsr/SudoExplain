@@ -37,7 +37,67 @@ public final class Greeter {
 ```
 
 ```bash
-node build.mjs --serve
+# start the dev server
+export PORT=4000
+node build.mjs --serve --drafts   # rebuilds on save
+echo "Listening on $PORT"
+```
+
+```javascript
+// Debounce a function
+const debounce = (fn, ms = 200) => {
+  let id;
+  return (...args) => {
+    clearTimeout(id);
+    id = setTimeout(() => fn(...args), ms);
+  };
+};
+```
+
+```python
+@cache
+def fib(n: int) -> int:
+    """Return the n-th Fibonacci number."""
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+```
+
+```sql
+-- Slowest queries first
+SELECT user_id, COUNT(*) AS total
+FROM orders
+WHERE created_at > '2026-01-01'
+GROUP BY user_id
+ORDER BY total DESC
+LIMIT 10;
+```
+
+```json
+{
+  "name": "sudo explain",
+  "private": true,
+  "version": 1.5,
+  "tags": ["java", "design"],
+  "draft": null
+}
+```
+
+```yaml
+# CI settings
+on:
+  push:
+    branches: [main]
+steps:
+  - run: node build.mjs
+    name: "Build site"
+```
+
+```html
+<!-- a link -->
+<a href="/posts/" class="nav">Writing</a>
+```
+
+```text
+Unknown languages stay plain: no colours, still escaped <safely> & "quoted".
 ```
 
 ## Table
