@@ -35,6 +35,8 @@ To try a serif look instead, open `assets/style.css` and set both of these at th
 
 Every page shares one container (`--wide`), so headings, lists and articles all start at the same left edge as the logo. Article text is capped at `--read-width` (44rem), which gives about 80 characters per line at 19px. If you change the font size or `--read-width`, keep lines under roughly 90 characters, because longer lines are harder to follow.
 
+On large monitors the whole design scales up together: from 1600px wide the base font size is 112.5%, and from 2200px it is 125%. Because everything is sized in `rem`, the container, the text and the reading column all grow in step, so a line still holds about 80 characters and the empty margins shrink. Laptops below 1600px wide (most 14" and 15" screens) are not affected. To change or remove this, edit the two `@media (min-width: ...)` rules next to the `html` rule in `assets/style.css`.
+
 ## SEO that is built in
 
 Nothing here needs configuring.
