@@ -443,9 +443,13 @@ function writingSuggestions(meta, body) {
   return out;
 }
 
+// Each post has its own link-preview card in static/og/<slug>.png, made by `node og-images.mjs`.
+const postCard = (slug) => (existsSync(join(ROOT, 'static', 'og', `${slug}.png`)) ? `/og/${slug}.png` : '');
+
 function reportSuggestions(posts) {
   console.log('\nWriting checks (suggestions only):');
   for (const p of posts) {
+    if (!p.draft && !postCard(p.slug)) p.suggestions.push('no link-preview card; run: node og-images.mjs');
     const label = p.draft ? `${p.slug} (draft)` : p.slug;
     if (!p.suggestions.length) {
       console.log(`  ok  ${label}`);
@@ -564,11 +568,14 @@ function layout({
   noindex = false,
   jsonLd = null,
   scripts = [],
+  card = '',
 }) {
   const pageTitle = fullTitle || (title ? `${title} · ${cfg.title}` : cfg.title);
   const desc = description || cfg.description;
   const canonical = `${cfg.url}${cfg.basePath}${path}`;
-  const image = cfg.ogImage ? `${cfg.url}${cfg.basePath}${cfg.ogImage}` : '';
+  const cardPath = card || cfg.ogImage;
+  const image = cardPath ? `${cfg.url}${cfg.basePath}${cardPath}` : '';
+  const imageAlt = card ? title : `${cfg.title}: ${cfg.tagline}`;
   const structured = jsonLd ? JSON.stringify(jsonLd).replace(/</g, '\\u003c') : '';
   const cssHash = createHash('sha1').update(readFileSync(join(ROOT, 'assets', 'style.css'))).digest('hex').slice(0, 8);
   const link = (href, label) =>
@@ -597,7 +604,7 @@ function layout({
 <meta property="og:title" content="${esc(fullTitle || title || cfg.title)}">
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:type" content="${type}">
-<meta property="og:url" content="${esc(canonical)}">${image ? `\n<meta property="og:image" content="${esc(image)}">\n<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n<meta property="og:image:alt" content="${esc(cfg.title)}: ${esc(cfg.tagline)}">` : ''}${published ? `\n<meta property="article:published_time" content="${published}">` : ''}${modified ? `\n<meta property="article:modified_time" content="${modified}">` : ''}
+<meta property="og:url" content="${esc(canonical)}">${image ? `\n<meta property="og:image" content="${esc(image)}">\n<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n<meta property="og:image:alt" content="${esc(imageAlt)}">` : ''}${published ? `\n<meta property="article:published_time" content="${published}">` : ''}${modified ? `\n<meta property="article:modified_time" content="${modified}">` : ''}
 <meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}">
 <meta name="twitter:title" content="${esc(fullTitle || title || cfg.title)}">
 <meta name="twitter:description" content="${esc(desc)}">${image ? `\n<meta name="twitter:image" content="${esc(image)}">` : ''}${structured ? `\n<script type="application/ld+json">${structured}</script>` : ''}
@@ -775,6 +782,7 @@ function postPage(post, newer, older, related = []) {
     path: `/posts/${post.slug}/`,
     nav: '/posts/',
     type: 'article',
+    card: postCard(post.slug),
     published: isoDay(post.date),
     modified: isoDay(post.updated),
     jsonLd: {
@@ -934,13 +942,20 @@ ${page.html}
 function redirectPage(post) {
   const target = withBase(`/posts/${post.slug}/`);
   const canonical = `${cfg.url}${cfg.basePath}/posts/${post.slug}/`;
+  const card = postCard(post.slug) || cfg.ogImage;
   return `<!doctype html>
 <html lang="${cfg.lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(post.title)} · ${esc(cfg.title)}</title>
+<meta name="description" content="${esc(post.description || cfg.description)}">
 <link rel="canonical" href="${esc(canonical)}">
+<meta property="og:site_name" content="${esc(cfg.title)}">
+<meta property="og:title" content="${esc(post.title)}">
+<meta property="og:description" content="${esc(post.description || cfg.description)}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="${esc(canonical)}">${card ? `\n<meta property="og:image" content="${esc(cfg.url + cfg.basePath + card)}">\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:image" content="${esc(cfg.url + cfg.basePath + card)}">` : ''}
 <meta http-equiv="refresh" content="0; url=${esc(target)}">
 <script>location.replace(${JSON.stringify(target)} + location.hash)</script>
 </head>

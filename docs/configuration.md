@@ -55,7 +55,11 @@ Nothing here needs configuring.
 
 ### Link-preview card
 
-`static/og.png` is the image shown when a link to the site is shared on LinkedIn, X and similar. It is 1200x630. To replace it, overwrite the file with another 1200x630 image. Social networks cache previews, so a new image can take a while to appear. LinkedIn's Post Inspector can refresh it.
+`static/og.png` is the image shown when a link to the site's home page is shared on LinkedIn, X and similar. It is 1200x630. To replace it, overwrite the file with another 1200x630 image.
+
+Each post has its own card in `static/og/<post-name>.png`, showing the post's title and topics. Make them with `node og-images.mjs` (needs Edge or Chrome installed). Posts without a card fall back to the home page image, and `node build.mjs --check` tells you which ones are missing. If you retitle a post, run the command again. The old address of a renamed post also carries the post's title and card, so a link shared before the rename still previews correctly.
+
+Social networks cache previews, so a changed image or title can take a while to appear. LinkedIn's Post Inspector (search for it) and the X card validator can refresh a link.
 
 ### Things to do outside the code
 

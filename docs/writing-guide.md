@@ -120,7 +120,13 @@ Aim for `ok` on your post. The checks cannot judge whether your explanation is c
 
 1. Delete the line `draft: true` from the front matter.
 2. Run `node build.mjs --check` one last time.
-3. Save your work and send it to GitHub:
+3. Make the post's link-preview card, the picture shown when someone shares the link on LinkedIn or X. It needs Edge or Chrome installed, and it makes one image per published post:
+
+```bash
+node og-images.mjs
+```
+
+4. Save your work and send it to GitHub. The new image in `static/og/` is part of the commit:
 
 ```bash
 git add -A
@@ -143,7 +149,7 @@ If the post changes so much that its title no longer matches its address, rename
 ```markdown
 ---
 title: Sessions, JWTs and load balancers explained
-aliases: sessions-vs-jwt
+aliases: old-post-name
 ---
 ```
 
@@ -226,6 +232,7 @@ Use invented names and numbers (`user 42`, `Server A`, `example.com`) and write 
 - [ ] You have read the post aloud once, and fixed anything that made you stumble
 - [ ] `node build.mjs --check` shows `ok`
 - [ ] `draft: true` has been removed
+- [ ] `node og-images.mjs` has been run, so the post has its own share card
 
 ## Troubleshooting
 
