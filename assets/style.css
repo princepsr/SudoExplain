@@ -18,8 +18,11 @@
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  /* One family for everything you read. Set both to var(--serif) to switch to a serif look. */
+  --font-read: var(--sans);
+  --font-display: var(--sans);
   --wide: 64rem;
-  --narrow: 42rem;
+  --narrow: 38.5rem;
   color-scheme: light;
 }
 
@@ -27,7 +30,7 @@
   :root:not([data-theme="light"]) {
     --bg: #121214;
     --surface: #1b1b1f;
-    --text: #e9e6df;
+    --text: #dcd8d0;
     --muted: #9a958a;
     --line: #2b2b30;
     --accent: #ff8a5c;
@@ -47,7 +50,7 @@
 :root[data-theme="dark"] {
   --bg: #121214;
   --surface: #1b1b1f;
-  --text: #e9e6df;
+  --text: #dcd8d0;
   --muted: #9a958a;
   --line: #2b2b30;
   --accent: #ff8a5c;
@@ -260,7 +263,7 @@ a:hover {
 .hero h1 {
   margin: 0;
   max-width: 24ch;
-  font-family: var(--serif);
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(2.2rem, 5.5vw, 3.6rem);
   line-height: 1.05;
@@ -280,7 +283,7 @@ a:hover {
   align-items: baseline;
   justify-content: space-between;
   margin: 2rem 0 0.25rem;
-  font: 600 0.8rem var(--mono);
+  font: 600 0.8rem var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -311,13 +314,13 @@ a:hover {
 .post-item time {
   grid-row: span 3;
   padding-top: 0.35rem;
-  font: 0.85rem var(--mono);
+  font: 0.85rem var(--sans);
   color: var(--muted);
 }
 
 .post-item h3 {
   margin: 0;
-  font-family: var(--serif);
+  font-family: var(--font-display);
   font-size: 1.4rem;
   line-height: 1.25;
   letter-spacing: -0.01em;
@@ -338,7 +341,7 @@ a:hover {
 
 .year {
   margin: 2.5rem 0 0;
-  font: 700 1.1rem var(--mono);
+  font: 700 1.1rem var(--sans);
   color: var(--accent);
 }
 
@@ -376,7 +379,7 @@ a:hover {
 
 .page-head h1 {
   margin: 0;
-  font-family: var(--serif);
+  font-family: var(--font-display);
   font-size: clamp(2rem, 5vw, 3rem);
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -426,7 +429,7 @@ a:hover {
 
 .toc-title {
   margin: 0 0 0.6rem;
-  font: 600 0.72rem var(--mono);
+  font: 600 0.72rem var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -457,7 +460,7 @@ a:hover {
 
 .post-head h1 {
   margin: 0.5rem 0 0;
-  font-family: var(--serif);
+  font-family: var(--font-display);
   font-size: clamp(2.1rem, 5.5vw, 3.2rem);
   line-height: 1.1;
   letter-spacing: -0.025em;
@@ -471,7 +474,7 @@ a:hover {
 
 .meta {
   margin: 0;
-  font: 0.85rem var(--mono);
+  font: 0.85rem var(--sans);
   color: var(--muted);
 }
 
@@ -481,7 +484,7 @@ a:hover {
 }
 
 .prose {
-  font-family: var(--serif);
+  font-family: var(--font-read);
   font-size: 1.125rem;
   line-height: 1.65;
   overflow-wrap: break-word;
@@ -600,7 +603,7 @@ a:hover {
   position: absolute;
   top: 0.45rem;
   right: 4.6rem;
-  font: 0.7rem var(--mono);
+  font: 0.7rem var(--sans);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -729,7 +732,7 @@ a:hover {
 .pager small {
   display: block;
   color: var(--muted);
-  font: 0.75rem var(--mono);
+  font: 0.75rem var(--sans);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }

@@ -20,6 +20,21 @@ All site-wide settings live in `site.config.json`. The build reads it every time
 
 `url` and `basePath` together decide every absolute link. Keep `url` free of a trailing slash and a path, and put any path in `basePath`.
 
+## Typography
+
+Everything you read (post titles, body text, headings, navigation) uses one system sans-serif family: Segoe UI on Windows, San Francisco on Mac, Roboto on Android. Monospace is used only for code and the small command line above the home page headline. No fonts are downloaded, so text appears instantly and looks native on every device.
+
+Body text is 18px with a 1.65 line height and about 75 characters per line, and the text colour is slightly softened in dark mode to reduce glare.
+
+To try a serif look instead, open `assets/style.css` and set both of these at the top to `var(--serif)`:
+
+```css
+--font-read: var(--sans);
+--font-display: var(--sans);
+```
+
+If you change the font size or the column width (`--narrow`), keep lines near 60 to 75 characters, because longer lines are harder to follow.
+
 ## SEO that is built in
 
 Nothing here needs configuring.
