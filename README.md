@@ -25,15 +25,18 @@ node build.mjs --drafts   # include drafts
 
 ## Publish a post
 
-1. Create `content/posts/my-post.md` (see [Writing posts](docs/writing.md)).
-2. Preview it with `node build.mjs --serve`.
-3. Commit and push to `main`. GitHub Actions builds and deploys in about a minute.
+1. Create a draft: `node new-post.mjs "My post title"`. This fills in the template for you.
+2. Preview it with `node build.mjs --serve`, and check the writing suggestions with `node build.mjs --check`.
+3. Remove `draft: true`, then commit and push to `main`. GitHub Actions builds and deploys in about a minute.
+
+New to this? Follow [How to write a post](docs/writing-guide.md). It starts from zero.
 
 ## Documentation
 
 | Guide | What it covers |
 |---|---|
-| [Writing posts](docs/writing.md) | Front matter, supported Markdown, code highlighting, images, drafts |
+| [How to write a post](docs/writing-guide.md) | From zero to published, plus how to explain things so beginners understand |
+| [Writing reference](docs/writing.md) | Front matter, supported Markdown, code highlighting, images, drafts |
 | [Configuration and SEO](docs/configuration.md) | Every `site.config.json` setting, and the SEO that is built in |
 | [Deployment](docs/deployment.md) | How GitHub Pages and the workflow are set up, plus troubleshooting |
 | [Custom domain](docs/custom-domain.md) | Step-by-step checklist for moving to your own domain |
@@ -49,6 +52,7 @@ node build.mjs --drafts   # include drafts
 | `assets/search.js` | Client-side search on the Writing page |
 | `static/` | Copied as-is to the site root (favicon, social card, post images) |
 | `site.config.json` | Site name, tagline, links, URL |
+| `new-post.mjs` | Creates a draft post from `docs/post-template.md` |
 | `build.mjs` | The generator: Markdown, templates, highlighting, RSS, sitemap, dev server |
 | `.github/workflows/deploy.yml` | Builds and deploys to GitHub Pages |
 | `docs/` | These guides |

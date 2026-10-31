@@ -2,6 +2,7 @@
 //   node build.mjs            build into dist/
 //   node build.mjs --serve    build + serve on http://localhost:4000 (includes drafts, rebuilds on change)
 //   node build.mjs --drafts   build including drafts
+//   node build.mjs --check    build including drafts, then print writing suggestions for every post
 
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, watch, writeFileSync } from 'node:fs';
@@ -13,7 +14,8 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const DIST = join(ROOT, 'dist');
 const ARGS = new Set(process.argv.slice(2));
 const SERVE = ARGS.has('--serve');
-const DRAFTS = SERVE || ARGS.has('--drafts');
+const CHECK = SERVE || ARGS.has('--check');
+const DRAFTS = SERVE || CHECK || ARGS.has('--drafts');
 
 let cfg = {};
 
@@ -351,6 +353,100 @@ function parseFrontMatter(raw) {
 
 // ---------- Content loading ----------
 
+const LIST_MARKER = /^\s*([-*]|\d+\.)\s+/;
+
+// Prose blocks of a post (code, tables, headings and raw HTML removed), plus the number of unlabelled code fences.
+function proseBlocks(body) {
+  const blocks = [];
+  let block = [];
+  let inCode = false;
+  let unlabelledFences = 0;
+  const flush = () => {
+    if (block.length && !/^(#|\||<)/.test(block[0])) blocks.push(block);
+    block = [];
+  };
+  for (const line of body.replace(/\r\n/g, '\n').split('\n')) {
+    if (line.startsWith('```')) {
+      if (!inCode && !line.slice(3).trim()) unlabelledFences++;
+      inCode = !inCode;
+      flush();
+    } else if (inCode) {
+      continue;
+    } else if (!line.trim()) {
+      flush();
+    } else {
+      block.push(line);
+    }
+  }
+  flush();
+  return { blocks, unlabelledFences };
+}
+
+const plainWords = (s) =>
+  s
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/`[^`]*`/g, 'code')
+    .replace(/[*_]/g, '')
+    .trim();
+
+const wordCount = (s) => (s.match(/\S+/g) || []).length;
+const snippet = (s) => `"${s.trim().split(/\s+/).slice(0, 7).join(' ')}…"`;
+
+// Plain-language writing checks, shown by `--check` and while previewing. Suggestions only, never errors.
+function writingSuggestions(meta, body) {
+  const out = [];
+  if (!meta.description) out.push('no description: an excerpt is used instead; write one under 160 characters');
+  else if (meta.description.length > 160) out.push(`description is ${meta.description.length} characters; search results cut it near 160`);
+  if (meta.title.length > 60) out.push(`title is ${meta.title.length} characters; search results cut titles near 60`);
+  if (!meta.tags) out.push('no tags: readers cannot find related posts or topics');
+
+  const { blocks, unlabelledFences } = proseBlocks(body);
+  if (unlabelledFences) out.push(`${unlabelledFences} code block(s) without a language; add one (java, bash, pseudocode, text...)`);
+
+  const sentences = [];
+  let proseWords = 0;
+  for (const lines of blocks) {
+    const text = lines.map((l) => l.replace(/^>\s?/, '')).filter((l) => !/^\[!\w+\]/.test(l));
+    const paragraph = plainWords(text.filter((l) => !LIST_MARKER.test(l)).join(' '));
+    const items = text.filter((l) => LIST_MARKER.test(l)).map((l) => plainWords(l.replace(LIST_MARKER, '')));
+    if (wordCount(paragraph) > 110) out.push(`paragraph of ${wordCount(paragraph)} words starting ${snippet(paragraph)}; split it`);
+    for (const unit of [paragraph, ...items]) {
+      proseWords += wordCount(unit);
+      sentences.push(...unit.split(/(?<=[.!?])\s+(?=[A-Z"(`])/).filter(Boolean));
+    }
+  }
+
+  const long = sentences.filter((s) => wordCount(s) > 35).sort((a, b) => wordCount(b) - wordCount(a));
+  if (long.length) {
+    out.push(`${long.length} sentence(s) over 35 words, longest ${wordCount(long[0])}: ${snippet(long[0])}`);
+  }
+  const average = sentences.length ? proseWords / sentences.length : 0;
+  if (average > 22) out.push(`average sentence is ${average.toFixed(1)} words; aim for 20 or fewer`);
+
+  const headings = (body.match(/^## /gm) || []).length;
+  if (proseWords > 800 && headings < 3) out.push('long post with fewer than 3 "##" sections; add headings so readers can scan it');
+  if (proseWords > 1200 && !/\[!SUMMARY\]/i.test(body)) out.push('long post without a [!SUMMARY] box at the top');
+  if (proseWords / 220 > 20) out.push(`about ${Math.round(proseWords / 220)} minutes of reading; consider splitting into a series`);
+  if (/^## .+\n\s*\n##? /m.test(body)) out.push('a "##" heading is followed straight by another heading, so a section is empty');
+  if (/!\[\]\(/.test(body)) out.push('an image has no alt text; describe it between the [ ] brackets');
+  if (/\{\{|\[[A-Z][^\]\n]{10,}\](?!\()/.test(body)) out.push('template placeholder text like [..] is still in the post');
+  return out;
+}
+
+function reportSuggestions(posts) {
+  console.log('\nWriting checks (suggestions only):');
+  for (const p of posts) {
+    const label = p.draft ? `${p.slug} (draft)` : p.slug;
+    if (!p.suggestions.length) {
+      console.log(`  ok  ${label}`);
+      continue;
+    }
+    console.log(`  ${label}: ${p.suggestions.length} suggestion(s)`);
+    for (const s of p.suggestions) console.log(`    - ${s}`);
+  }
+}
+
 // First prose paragraph, stripped of Markdown, trimmed to a search-snippet length.
 function excerpt(body, max = 160) {
   const para = body
@@ -389,6 +485,7 @@ function loadPosts() {
         draft: meta.draft === 'true',
         tags: (meta.tags || '').split(',').map((t) => t.trim()).filter(Boolean),
         minutes: Math.max(1, Math.round(body.split(/\s+/).length / 220)),
+        suggestions: CHECK ? writingSuggestions(meta, body) : [],
         html: markdown(body),
       };
     })
@@ -848,6 +945,7 @@ function build() {
   emit('/robots.txt', `User-agent: *\nAllow: /\nSitemap: ${cfg.url}${cfg.basePath}/sitemap.xml\n`);
 
   console.log(`Built ${posts.length} post(s) in ${Date.now() - started}ms -> dist/`);
+  if (CHECK) reportSuggestions(posts);
 }
 
 // ---------- Dev server ----------

@@ -6,6 +6,8 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "build": "node build.mjs",
-    "dev": "node build.mjs --serve"
+    "dev": "node build.mjs --serve",
+    "check": "node build.mjs --check",
+    "new": "node new-post.mjs"
   }
 }

@@ -12,7 +12,9 @@ Here is the question that started this post:
 
 > If a web app keeps a session for every logged-in user, how can it run on several servers behind a load balancer? Isn't a session exactly the thing that ties you to one machine?
 
-I hit this while trying to understand an application that keeps a lot of per-user state (what the user has loaded, how long since they last did anything) and still runs spread across several servers. It looks like a contradiction. It isn't, but the answer only makes sense after the basics, so we start there. I won't assume you know any of these words.
+I hit this while studying an application that remembers a lot about each user (what they have loaded, how long since they last did anything). It still runs spread across several servers. For now, think of a load balancer as a traffic cop that shares requests out between servers. We will define it properly below.
+
+It looks like a contradiction. It isn't, but the answer only makes sense after the basics, so we start there. I won't assume you know any of these words.
 
 > [!SUMMARY]
 > By the end you will know:
@@ -24,7 +26,9 @@ I hit this while trying to understand an application that keeps a lot of per-use
 
 ## First, the problem HTTP leaves us with
 
-Your browser talks to a website using HTTP, and HTTP has no memory. Every request arrives as a stranger. The server answers it and forgets it.
+Your browser talks to a website using HTTP, the set of rules browsers and servers use to exchange pages and data. Each time your browser asks the server for something (a page, an image, your list of orders), that is one **request**.
+
+HTTP has no memory. Every request arrives as a stranger. The server answers it and forgets it.
 
 ```text
 Request 1:  POST /login   (username + password)  ->  "Welcome, Prince"
@@ -42,7 +46,16 @@ Response:   Set-Cookie: sid=9f3c2a...; HttpOnly; Secure; SameSite=Lax
 Requests:   Cookie: sid=9f3c2a...
 ```
 
-Those extra words are safety switches: `HttpOnly` hides the cookie from page JavaScript, `Secure` sends it only over HTTPS, and `SameSite` limits when other sites can trigger it. Remember that the browser does the carrying. The only question is what you put inside the cookie.
+Those extra words are safety switches. `HttpOnly` hides the cookie from the page's own JavaScript. `Secure` sends it only over HTTPS (the encrypted, padlock version of HTTP). `SameSite` limits when other websites can trigger it. Remember that the browser does the carrying. The only question is what you put inside the cookie.
+
+### See it yourself
+
+You can look at a real one in two minutes. Open a website you are logged into, where logging back in is easy, and press `F12` to open the browser's developer tools. Choose the **Application** tab (called **Storage** in Firefox), then **Cookies**, then your site.
+
+Look for a cookie with a long, random-looking value. It is often named something like `session`, `sid` or `JSESSIONID`. That value is the ticket number. Now delete that cookie and refresh the page. You are logged out, because the server can no longer match a ticket to a record. If nothing happens, the site keeps its login in a different cookie, so try another one.
+
+> [!WARNING]
+> A real session cookie or token works like a password for your account. Never paste one into an online tool, a chat or an email.
 
 ## What is a session?
 
@@ -73,13 +86,13 @@ on GET /orders:
 
 Notice where the record lives: in a table inside that one server's memory. Keep that in mind, because it is the root of the whole problem.
 
-You may already have used this without noticing. In a Java web app, the servlet container (Tomcat, for example) does exactly this for you: calling `request.getSession()` creates the record and sends a cookie called `JSESSIONID`. By default, the table lives in that one server's memory.
+You may already have used this without noticing. In a Java web app, the servlet container (the program that runs it, such as Tomcat) does exactly this for you: calling `request.getSession()` creates the record and sends a cookie called `JSESSIONID`. By default, the table lives in that one server's memory.
 
 A session has a great property: **the server is in control**. To log someone out, delete their record. To change their permissions, edit it. The next request sees the change.
 
 ## What is a JWT?
 
-JWT stands for JSON Web Token. It takes the opposite approach: the server keeps **nothing**, and the browser carries **the facts about you**, sealed so they cannot be changed.
+JWT stands for JSON Web Token (JSON is just a plain-text way of writing labelled values, as in the box below). It takes the opposite approach: the server keeps **nothing**, and the browser carries **the facts about you**, sealed so they cannot be changed.
 
 Think of a festival wristband with your ticket details printed on it and a tamper-proof seal. Any gate guard can read it and check the seal. Nobody needs to phone head office.
 
@@ -98,6 +111,8 @@ A JWT is three chunks of text joined by dots: `header.payload.signature`.
 }
 ```
 
+Here `sub` is the subject (the user's ID), `iat` is when the token was issued and `exp` is when it expires, both written as seconds since 1970.
+
 When the token comes back, the server recomputes the seal. If it matches, the facts are trusted. If someone edited even one letter, the seal no longer matches and the token is rejected.
 
 ```pseudocode
@@ -109,11 +124,13 @@ token = sign(facts, privateKey)
 facts = verify(token, publicKey)
 ```
 
+The two keys work as a pair. The `privateKey` is the secret that only the server knows, and it is the only thing that can create a seal. The `publicKey` can be handed to anyone, and it can check a seal but never make one. (Some systems use a single shared secret for both jobs. The idea is the same.)
+
 There is no lookup and no table. Just a calculation.
 
 ### One thing that surprises people
 
-A JWT is **signed, not encrypted**. Anyone holding it can read it. In Java, three lines are enough to open one up, no key needed:
+A JWT is **signed, not encrypted**. Its chunks are written in Base64, which is only a way of spelling any data with ordinary letters and digits. It is not a secret code. Anyone holding the token can read it. In Java, three lines are enough to open one up, no key needed:
 
 ```java
 String payload = token.split("\\.")[1];
@@ -145,7 +162,7 @@ Everything above works perfectly with a single server. Real apps rarely stay tha
 
 - limited capacity, and it falls over under heavy load
 - no backup if it crashes
-- downtime every time you deploy a new version
+- downtime every time you release a new version, because the app has to restart
 
 So you run several copies of the app and put a **load balancer** in front of them. A load balancer is a traffic cop: it receives every request from users and hands each one to one of the servers, spreading the work out. Users see one website, but several servers do the work behind it.
 
@@ -197,7 +214,7 @@ When users report random logouts only in production, suspect this. Here is how t
 
 **1. Notice the pattern.** Logins that work, then vanish for no reason? Does it happen more as you add servers? Does it go away if you run only one server? Those are strong signs.
 
-**2. Find out which server answers.** Configure each server to add a header to its responses with its own name, for example `X-Served-By: server-a`. Then log in once, save the cookie, and call a protected page several times:
+**2. Find out which server answers.** Configure each server to add a **header** to its responses with its own name, for example `X-Served-By: server-a`. A header is a labelled extra line of information sent along with the page. Then log in once, save the cookie, and call a protected page several times. The tool below is `curl`, a command-line program that makes web requests for you:
 
 ```bash
 # Log in once and save the cookie
@@ -224,7 +241,7 @@ HTTP/2 302
 x-served-by: server-b
 ```
 
-A `200` from the server that created the session, and a `302` redirect to the login page from the other. That settles it.
+A `200` (success) comes from the server that created the session, and a `302` (a redirect to the login page) comes from the other. That settles it.
 
 **3. Rule out the lookalikes.** Make sure the cookie is actually being sent (check the browser's developer tools, Application tab), that it has not expired, and that the cookie's domain and `Secure` settings match your site. Those cause random logouts too, but they would break on one server as well.
 
@@ -242,7 +259,7 @@ Sticky sessions are a bandage. They are fine for a small setup, and not much mor
 
 ## Fix 2: a shared session store
 
-The robust fix: **take the table out of the server.** Keep sessions in one shared place that every server can read, such as a database, a fast in-memory store like Redis, or a distributed cache such as Infinispan or Hazelcast.
+The robust fix: **take the table out of the server.** Keep sessions in one shared place that every server can read. A database works. So does a fast in-memory store like Redis, which is software built to hold small pieces of data in memory and share them over a network. Distributed caches such as Infinispan or Hazelcast do the same job. You do not need to know these yet. They are just examples.
 
 <figure>
 <div class="diagram">
@@ -295,13 +312,13 @@ Now Server A creates the session, Server B finds it, and everything works. Any s
 Two details matter in practice:
 
 - **Expiry must be shared too.** Store a "last active" timestamp in the shared record, and treat a session as expired when `now - lastActive > timeout`. If each server tracked time on its own, one server could log you out while another still thinks you are logged in.
-- **There is a cost.** Every request now makes a trip to the store, and the store has to be reliable, because if it goes down, nobody can be recognised. That is why these stores are usually run as replicated clusters.
+- **There is a cost.** Every request now makes a trip to the store, and the store has to be reliable, because if it goes down, nobody can be recognised. That is why these stores usually run as a group of machines holding copies of each other's data, so one failure does not lose everything.
 
 A third option exists, *session replication*, where servers copy sessions to each other. It works for small clusters, but it gets heavy as you grow, which is why a shared store is more common.
 
 ### A gotcha: cached copies go stale
 
-Apps often keep more than a login record per user. They keep a working copy of data in memory (say, the projects you have loaded) because reading from memory is far faster than asking the database every time.
+Apps often keep more than a login record per user. They keep a working copy of data in memory (say, the projects you have loaded) because reading from memory is far faster than asking the database every time. A saved copy kept close by for quick reuse is called a **cache**.
 
 Now there is a new trap. Server A updates some data. Server B still holds an old copy in its memory and happily serves it. Different users see different truths.
 
@@ -327,7 +344,7 @@ With a JWT, the login hands the browser a signed token carrying the facts. On ev
 2. Your next request goes to Server B. It checks the signature. It matches. You are in.
 3. The request after that goes to Server A. Same check. Same result.
 
-No server needed to have seen your login. This is why tokens are popular when many servers, or many separate services, must all trust the same login. With public-key signing, services only need the **public** key to verify tokens, so they can check logins without being able to create fake ones.
+No server needed to have seen your login. This is why tokens are popular when many servers, or many separate services, must all trust the same login. Remember the key pair from earlier: services only need the **public** key to check tokens, so they can verify logins without being able to create fake ones.
 
 ### The catch
 
@@ -346,8 +363,8 @@ So "stateless" never meant the state vanished. The honest version is: *JWTs keep
 
 Many real applications use both ideas, each where it fits:
 
-- **Browser users** log in, often through a separate identity provider using OAuth2. The server then creates a session, keeps it in a shared store, and the browser holds only the cookie.
-- **Scripts and other apps** call the API with a JWT in a header: `Authorization: Bearer <token>`. The server verifies the signature using the issuer's public keys (usually published at a URL as a *JWKS*, a key set), and then builds the same kind of user context it would have for a browser.
+- **Browser users** log in, often through a separate login service (an *identity provider*, like the "Sign in with Google" button, which works through a standard called OAuth2). The server then creates a session, keeps it in a shared store, and the browser holds only the cookie.
+- **Scripts and other apps** call the API with a JWT in a header: `Authorization: Bearer <token>`. The login service that made the token publishes its public keys at a web address (a *JWKS*, short for JSON Web Key Set). Any server can fetch them and check the seal. It then builds the same kind of user context it would have for a browser.
 
 So the JWT is how a client *arrives*, and the session is what the server *keeps* while the user works. That mixture explained my original confusion: the app really was stateful, the servers really were interchangeable, and the JWT and the session were doing different jobs.
 

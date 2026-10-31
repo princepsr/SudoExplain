@@ -1,4 +1,6 @@
-# Writing posts
+# Writing reference
+
+This page is the reference: every front matter field and every Markdown feature the site supports. If you are new, or want to know how to *explain* things well, start with [How to write a post](writing-guide.md).
 
 Every post is one Markdown file in `content/posts/`. The filename becomes the URL: `sessions-vs-jwt.md` is published at `/posts/sessions-vs-jwt/`.
 
