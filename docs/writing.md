@@ -35,7 +35,7 @@ A missing `title` or an invalid date stops the build with an error that names th
 - Tables, with column alignment (`:---`, `:---:`, `---:`)
 - Blockquotes and horizontal rules
 - Fenced code blocks, with syntax highlighting
-- Raw HTML blocks, which is useful for inline SVG diagrams. A block that starts with `<` is passed through unchanged
+- Raw HTML blocks, which is useful for inline SVG diagrams. A block that starts with `<` is passed through unchanged, and it ends at the first blank line, so keep blank lines out of it. Wrap a wide diagram in `<div class="diagram">…</div>` so it keeps a readable size and scrolls sideways on phones. Use `currentColor` and `var(--accent)` for strokes and text so it follows the light and dark themes
 
 Not supported: footnotes, task lists, underscore-style italics (`_text_`), and inline HTML mixed into a paragraph.
 
@@ -79,6 +79,10 @@ Always write meaningful alt text. It is used by screen readers and by search eng
 - Set `draft: true` while you write, and preview with `node build.mjs --serve`.
 - Remove `draft: true` (or set it to `false`) when the post is ready, then push.
 - `content/posts/writing-showcase.md` is a draft that demonstrates every element. It is never published. Delete it whenever you like.
+
+## "On this page" contents list
+
+Posts with three or more `##` sections get a sticky contents list in the right margin on screens 1100px and wider. It is built automatically from your `##` headings, so give them short, clear names. Nothing to configure.
 
 ## Other pages
 

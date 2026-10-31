@@ -1,56 +1,96 @@
 ---
-title: Sessions vs JWT: where does your login actually live?
+title: Sessions, JWTs and load balancers explained
+slug: sessions-vs-jwt
 date: 2026-10-31
-description: Both answer "who is this request from?". The real difference is where the state lives, and who pays when you need to log someone out.
-tags: authentication, web, system-design
+description: A beginner's walkthrough: what sessions and JWTs are, what breaks when you add a second server, how to diagnose it, and how to fix it.
+tags: authentication, web, system-design, scaling
 ---
 
 ## The doubt
 
-Every article says the same thing: *sessions are stateful, JWTs are stateless, so JWTs scale better.* Then you build an app with JWTs and discover it still hits the database on every request. Logging a user out doesn't really work. And somehow you also ended up storing a "refresh token" on the server.
+Here is the question that started this post:
 
-So what did "stateless" actually buy you?
+> If a web app keeps a session for every logged-in user, how can it run on several servers behind a load balancer? Isn't a session exactly the thing that ties you to one machine?
 
-## The misconception
+I hit this while trying to understand an application that keeps a lot of per-user state (what the user has loaded, how long since they last did anything) and still runs spread across several servers. It looks like a contradiction. It isn't, but the answer only makes sense after the basics, so we start there. I won't assume you know any of these words.
 
-I used to think JWT was the modern replacement and sessions were the old way. That framing hides the real point: **both solve the same problem**. HTTP has no memory, so every request has to prove who sent it. The only question is *where the memory lives*.
+By the end you will know:
 
-- **Sessions** keep the memory on the server. The browser carries a meaningless ticket number.
-- **JWTs** put the memory in the token. The server keeps nothing and re-checks a signature instead.
+1. What a session is, and what a JWT is
+2. What a load balancer does, and why it breaks naive sessions
+3. How to **diagnose** the problem when it happens to you
+4. The ways to **fix** it, and how a JWT fits in
 
-Neither is free. You are choosing where to pay.
+## First, the problem HTTP leaves us with
 
-## How a session works
-
-After you log in, the server creates a record and gives the browser only its ID:
+Your browser talks to a website using HTTP, and HTTP has no memory. Every request arrives as a stranger. The server answers it and forgets it.
 
 ```text
-POST /login            -> 200 OK
-Set-Cookie: sid=9f3c2a...; HttpOnly; Secure; SameSite=Lax
-
-GET /orders
-Cookie: sid=9f3c2a...
+Request 1:  POST /login   (username + password)  ->  "Welcome, Prince"
+Request 2:  GET  /orders                         ->  "Who are you?"
 ```
 
-The cookie value is just a random lookup key. Everything meaningful (the user, their roles, the cart) sits in a store on the server. Every request does a lookup:
+The server did not forget on purpose. Nothing in request 2 says it came from the person who logged in a moment ago. So after login, the browser has to **prove who it is on every single request**, without typing the password again. A session and a JWT are two different ways to do that.
 
-```java
-// Pseudo-code
-Session session = sessionStore.get(request.cookie("sid"));  // read from the store
-User user = session.user();
+### Cookies in 30 seconds
+
+Both ideas usually ride on a **cookie**. A cookie is a small piece of text that a website asks your browser to store. After that, the browser attaches it automatically to every request to that website.
+
+```text
+Response:   Set-Cookie: sid=9f3c2a...; HttpOnly; Secure; SameSite=Lax
+Requests:   Cookie: sid=9f3c2a...
 ```
 
-This has a great property: **the server is in control.** To log someone out, delete the record. To change a user's permissions, update the record. The next request sees it.
+Those extra words are safety switches: `HttpOnly` hides the cookie from page JavaScript, `Secure` sends it only over HTTPS, and `SameSite` limits when other sites can trigger it. Remember that the browser does the carrying. The only question is what you put inside the cookie.
 
-The cost shows up when you run more than one server. Request one lands on server A and creates the session in A's memory. Request two lands on server B, which has never heard of you. There are three standard fixes:
+## What is a session?
 
-1. **Sticky sessions**: the load balancer always sends you to the same server. Simple, but if that server dies, you are logged out.
-2. **A shared session store** (a database, Redis, a distributed cache): every server reads the same records. Robust, but now every request makes a network call.
-3. **Replicate sessions between servers**: works for small clusters, gets heavy as you grow.
+A session is a **record the server keeps about you**. After you log in, the server:
 
-## How a JWT works
+1. Creates a record such as "this is user 42, logged in at 10:00"
+2. Gives that record a long random ID, for example `9f3c2a...`
+3. Sends the ID to your browser in a cookie
 
-A JWT is three base64 chunks joined by dots: `header.payload.signature`. The payload carries the facts about you:
+The cookie holds only the ticket number. Think of a coat check: you hand over your coat and get a numbered ticket. The ticket is meaningless on its own. The coat stays in the cloakroom. On every later request the server takes the ticket, looks up the record, and knows who you are.
+
+Here is the idea as simplified code:
+
+```javascript
+// A table kept in THIS server's memory
+const sessions = new Map();
+
+app.post('/login', (req, res) => {
+  const id = crypto.randomUUID();       // random ticket number
+  sessions.set(id, { userId: 42 });     // the record
+  res.setHeader('Set-Cookie', `sid=${id}; HttpOnly; Secure`);
+  res.end('ok');
+});
+
+app.get('/orders', (req, res) => {
+  const session = sessions.get(readCookie(req, 'sid'));
+
+  // Unknown ticket: who are you?
+  if (!session) return res.redirect('/login');
+
+  res.end(`orders for user ${session.userId}`);
+});
+```
+
+Notice where the record lives: in a `Map` inside that one server's memory. Keep that in mind, because it is the root of the whole problem.
+
+A session has a great property: **the server is in control**. To log someone out, delete their record. To change their permissions, edit it. The next request sees the change.
+
+## What is a JWT?
+
+JWT stands for JSON Web Token. It takes the opposite approach: the server keeps **nothing**, and the browser carries **the facts about you**, sealed so they cannot be changed.
+
+Think of a festival wristband with your ticket details printed on it and a tamper-proof seal. Any gate guard can read it and check the seal. Nobody needs to phone head office.
+
+A JWT is three chunks of text joined by dots: `header.payload.signature`.
+
+- The **header** says how it was signed
+- The **payload** holds the facts (called *claims*), such as who you are and when the token expires
+- The **signature** is the seal, made with a secret key that only the server holds
 
 ```json
 {
@@ -61,19 +101,22 @@ A JWT is three base64 chunks joined by dots: `header.payload.signature`. The pay
 }
 ```
 
-The server signs those three parts with a secret (or a private key). When a request arrives, the server checks the signature. If it matches, the claims are trusted. **There is no lookup and no shared store**, just maths:
+When the token comes back, the server recomputes the seal. If it matches, the facts are trusted. If someone edited even one letter, the seal no longer matches and the token is rejected.
 
-```java
-// Pseudo-code
-Claims claims = verifier.verify(request.bearerToken());  // CPU only, no network call
-User user = new User(claims.subject(), claims.role());
+```javascript
+// At login (done once)
+const facts = { sub: '42', role: 'admin', exp: inOneHour() };
+const token = sign(facts, privateKey);
+
+// On every request: throws if tampered with or expired
+const claims = verify(token, publicKey);
 ```
 
-Any server that knows the verification key can do this, which is why JWTs fit multiple servers and multiple services so well. With public-key signing, services only need the *public* key to verify tokens, so they can't mint new ones.
+There is no lookup and no table. Just a calculation.
 
 ### One thing that surprises people
 
-A JWT is **signed, not encrypted**. Anyone holding the token can read it:
+A JWT is **signed, not encrypted**. Anyone holding it can read it:
 
 ```javascript
 const [header, payload] = token.split('.');
@@ -82,54 +125,260 @@ console.log(claims);
 // { sub: "42", role: "admin", exp: 1793493600 }
 ```
 
-The signature stops people *changing* the claims. It does nothing to stop people *reading* them. Never put secrets, personal data you wouldn't show the user, or anything sensitive in the payload.
+The seal stops people *changing* the facts. It does not stop people *reading* them. Never put passwords or sensitive data in the payload.
 
-## The catch: revocation
+## Stateful and stateless, in plain words
 
-Here is where the doubt from the start gets answered.
+You will see these two words everywhere, so let us pin them down.
 
-A JWT is valid until it expires. The server isn't looking anything up, so it has no way to say "actually, this one is no good any more". That is a problem when:
+- **Stateful** means someone has to *remember* things between requests. A session is stateful: the server remembers you.
+- **Stateless** means nothing is remembered between requests. Each request carries everything needed to handle it. A JWT is the stateless style: the token carries the facts.
+
+Two misconceptions are worth clearing up now:
+
+- *"JWT is the modern replacement and sessions are old."* They are two answers to the same question: where does the memory live? Neither is free.
+- *"A stateful app cannot be spread over many servers."* It can, and this post shows how. The trick is to separate **where the state lives** from **which server answers the request**.
+
+## One server is easy. Then you add a second.
+
+Everything above works perfectly with a single server. Real apps rarely stay that way, because one server means:
+
+- limited capacity, and it falls over under heavy load
+- no backup if it crashes
+- downtime every time you deploy a new version
+
+So you run several copies of the app and put a **load balancer** in front of them. A load balancer is a traffic cop: it receives every request from users and hands each one to one of the servers, spreading the work out. Users see one website, but several servers do the work behind it.
+
+## The problem: a session kept in one server's memory
+
+Now combine the two ideas. Our session code kept its table in **one server's memory**. Watch what happens with two servers:
+
+<div class="diagram">
+<svg viewBox="0 0 680 300" role="img" aria-label="Diagram: a login creates a session on Server A. The next request is sent by the load balancer to Server B, which has no record of the session and asks the user to log in again.">
+  <defs><marker id="arr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+  <g font-family="var(--sans)" font-size="14" fill="currentColor" stroke="currentColor" stroke-width="2">
+    <rect x="10" y="120" width="110" height="56" rx="8" fill="none"/>
+    <rect x="210" y="120" width="130" height="56" rx="8" fill="none"/>
+    <rect x="470" y="30" width="190" height="80" rx="8" fill="none"/>
+    <rect x="470" y="190" width="190" height="80" rx="8" fill="none"/>
+    <line x1="120" y1="148" x2="206" y2="148" marker-end="url(#arr1)"/>
+    <line x1="340" y1="135" x2="466" y2="78" marker-end="url(#arr1)"/>
+    <line x1="340" y1="161" x2="466" y2="222" stroke="var(--accent)" stroke-dasharray="6 5" marker-end="url(#arr1)"/>
+    <g stroke="none" text-anchor="middle">
+      <text x="65" y="153">Browser</text>
+      <text x="275" y="153">Load balancer</text>
+      <text x="565" y="62">Server A</text>
+      <text x="565" y="88" font-size="13">memory: { session S1 }</text>
+      <text x="565" y="222">Server B</text>
+      <text x="565" y="248" font-size="13">memory: { }</text>
+      <text x="565" y="292" font-size="13" fill="var(--accent)">"Who are you? Please log in."</text>
+    </g>
+    <g stroke="none">
+      <text x="352" y="96">1. login</text>
+      <text x="345" y="236" fill="var(--accent)">2. next request</text>
+    </g>
+  </g>
+</svg>
+</div>
+
+1. You log in. The load balancer sends the request to **Server A**. Server A creates session `S1` in its own memory and gives your browser the cookie `sid=S1`.
+2. You click a link. The load balancer sends this request to **Server B**, which is just as likely. Server B receives `sid=S1`, looks in its own memory, finds nothing, and says: *"Who are you? Please log in."*
+
+Server B did nothing wrong. It simply never saw your login. The result for users is baffling: they are logged out at random, or have to log in again every few clicks.
+
+This bug is cruel for one more reason: **it never shows up on your laptop**, because on your laptop there is only one server.
+
+## How to diagnose it
+
+When users report random logouts only in production, suspect this. Here is how to confirm it step by step.
+
+**1. Notice the pattern.** Logins that work, then vanish for no reason? Does it happen more as you add servers? Does it go away if you run only one server? Those are strong signs.
+
+**2. Find out which server answers.** Configure each server to add a header to its responses with its own name, for example `X-Served-By: server-a`. Then log in once, save the cookie, and call a protected page several times:
+
+```bash
+# Log in once and save the cookie
+curl -s -c jar.txt -d 'user=demo&pass=demo' \
+  https://example.com/login -o /dev/null
+
+# Call a protected page six times and show who answered
+for i in 1 2 3 4 5 6; do
+  curl -s -b jar.txt -D - -o /dev/null https://example.com/orders \
+    | grep -iE "^HTTP/|^x-served-by"
+done
+```
+
+If sessions are stuck in one server's memory, you will see something like this:
+
+```text
+HTTP/2 200
+x-served-by: server-a
+HTTP/2 302
+x-served-by: server-b
+HTTP/2 200
+x-served-by: server-a
+HTTP/2 302
+x-served-by: server-b
+```
+
+A `200` from the server that created the session, and a `302` redirect to the login page from the other. That settles it.
+
+**3. Rule out the lookalikes.** Make sure the cookie is actually being sent (check the browser's developer tools, Application tab), that it has not expired, and that the cookie's domain and `Secure` settings match your site. Those cause random logouts too, but they would break on one server as well.
+
+## Fix 1: sticky sessions
+
+The cheapest fix: tell the load balancer to **always send the same user to the same server**. This is called a *sticky session*. Once you land on Server A, you stay on Server A.
+
+It works, but it has real weaknesses:
+
+- If Server A crashes or restarts, everyone stuck to it is logged out
+- Deploying a new version restarts the servers, so you log everyone out each time
+- The load can become uneven, because some users keep a server busy while others do not
+
+Sticky sessions are a bandage. They are fine for a small setup, and not much more.
+
+## Fix 2: a shared session store
+
+The robust fix: **take the table out of the server.** Keep sessions in one shared place that every server can read, such as a database, a fast in-memory store like Redis, or a distributed cache such as Infinispan or Hazelcast.
+
+<div class="diagram">
+<svg viewBox="0 0 680 300" role="img" aria-label="Diagram: the load balancer sends requests to either Server A or Server B. Both servers read and write sessions in one shared session store, so either can handle any request.">
+  <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+  <g font-family="var(--sans)" font-size="14" fill="currentColor" stroke="currentColor" stroke-width="2">
+    <rect x="10" y="120" width="100" height="56" rx="8" fill="none"/>
+    <rect x="170" y="120" width="130" height="56" rx="8" fill="none"/>
+    <rect x="370" y="20" width="150" height="64" rx="8" fill="none"/>
+    <rect x="370" y="216" width="150" height="64" rx="8" fill="none"/>
+    <rect x="565" y="104" width="105" height="92" rx="8" fill="none" stroke="var(--accent)"/>
+    <line x1="110" y1="148" x2="166" y2="148" marker-end="url(#arr2)"/>
+    <line x1="300" y1="135" x2="366" y2="66" marker-end="url(#arr2)"/>
+    <line x1="300" y1="161" x2="366" y2="232" marker-end="url(#arr2)"/>
+    <line x1="520" y1="60" x2="563" y2="128" stroke="var(--accent)" marker-end="url(#arr2)"/>
+    <line x1="520" y1="240" x2="563" y2="172" stroke="var(--accent)" marker-end="url(#arr2)"/>
+    <g stroke="none" text-anchor="middle">
+      <text x="60" y="153">Browser</text>
+      <text x="235" y="153">Load balancer</text>
+      <text x="445" y="49">Server A</text>
+      <text x="445" y="69" font-size="12">keeps no sessions</text>
+      <text x="445" y="245">Server B</text>
+      <text x="445" y="265" font-size="12">keeps no sessions</text>
+      <text x="617" y="142">Shared</text>
+      <text x="617" y="160">session store</text>
+      <text x="617" y="180" font-size="12" fill="var(--accent)">{ S1 }</text>
+    </g>
+  </g>
+</svg>
+</div>
+
+In code, the change is tiny. The only thing that moves is where the table lives:
+
+```javascript
+// Was: new Map(). Now every server uses the same store
+const sessions = sharedStore;
+
+// At login, on any server
+await sessions.set(id, { userId: 42 }, { ttlSeconds: 1800 });
+
+// On a later request, on any server
+const session = await sessions.get(id);
+```
+
+Now Server A creates the session, Server B finds it, and everything works. Any server can answer any request, so the servers are **interchangeable**. You can add, remove or restart them freely.
+
+**This answers the question we started with.** The application is still stateful, because it remembers you. But the *state* lives in the shared store, not in the web servers. The servers are effectively stateless, and that is what lets a load balancer spread requests around freely. Stateful system, stateless servers.
+
+Two details matter in practice:
+
+- **Expiry must be shared too.** Store a "last active" timestamp in the shared record, and treat a session as expired when `now - lastActive > timeout`. If each server tracked time on its own, one server could log you out while another still thinks you are logged in.
+- **There is a cost.** Every request now makes a trip to the store, and the store has to be reliable, because if it goes down, nobody can be recognised. That is why these stores are usually run as replicated clusters.
+
+A third option exists, *session replication*, where servers copy sessions to each other. It works for small clusters, but it gets heavy as you grow, which is why a shared store is more common.
+
+### A gotcha: cached copies go stale
+
+Apps often keep more than a login record per user. They keep a working copy of data in memory (say, the projects you have loaded) because reading from memory is far faster than asking the database every time.
+
+Now there is a new trap. Server A updates some data. Server B still holds an old copy in its memory and happily serves it. Different users see different truths.
+
+A common fix is a **version number**: a counter stored in the database that goes up every time the data changes. Before trusting a cached copy, a server compares versions:
+
+```javascript
+// Cheap: one small number
+const current = await db.getVersion('projects');
+
+// Someone changed it elsewhere: reload the fresh copy
+if (cache.version !== current) {
+  cache.data = await db.loadProjects();
+  cache.version = current;
+}
+```
+
+Checking one number is cheap. Reloading everything on every request is not. The version number tells you when you must.
+
+## Fix 3: stop storing sessions on the server at all (JWT)
+
+There is a completely different way to escape the problem: if the server keeps no session, there is nothing to share. That is exactly what a JWT does.
+
+With a JWT, the login hands the browser a signed token carrying the facts. On every request, **any** server can check the signature using the key, and trust the facts. No shared table, no lookup, no request to a store.
+
+1. You log in. The token is created and given to your browser.
+2. Your next request goes to Server B. It checks the signature. It matches. You are in.
+3. The request after that goes to Server A. Same check. Same result.
+
+No server needed to have seen your login. This is why tokens are popular when many servers, or many separate services, must all trust the same login. With public-key signing, services only need the **public** key to verify tokens, so they can check logins without being able to create fake ones.
+
+### The catch
+
+A JWT is valid until it expires, and the server is not looking anything up, so it cannot say "actually, this one is no good any more." That hurts when:
 
 - a user logs out
 - an account is disabled
 - a role is removed
 - a token is stolen
 
-The usual answer is to make tokens **short-lived** (say, 5 to 15 minutes) and pair them with a **refresh token**. When the short token expires, the client trades the refresh token for a new one. Here's the catch: **the refresh token is checked against a server-side record**, so you can revoke it. You have rebuilt a session, just a smaller one that is consulted every few minutes instead of every request.
+The usual answer is to make tokens **short-lived** (5 to 15 minutes) and pair them with a **refresh token**. When the short token expires, the client trades the refresh token for a new one. Here is the catch: the refresh token is checked against a **server-side record**, so it can be revoked. You have rebuilt a small session, consulted every few minutes instead of every request.
 
-The other option is a **denylist** of revoked token IDs that every server checks. That is also state, and also a lookup.
+So "stateless" never meant the state vanished. The honest version is: *JWTs keep state out of the hot path, and in exchange you get weaker, slower revocation.*
 
-So "stateless" was always slightly misleading. The honest version is: *JWTs let you keep state out of the hot path, and you pay for it with weaker, slower revocation.*
+## What real systems do: a bit of both
 
-## Where the token lives in the browser
+Many real applications use both ideas, each where it fits:
 
-This decision matters as much as the choice of session or JWT.
+- **Browser users** log in, often through a separate identity provider using OAuth2. The server then creates a session, keeps it in a shared store, and the browser holds only the cookie.
+- **Scripts and other apps** call the API with a JWT in a header: `Authorization: Bearer <token>`. The server verifies the signature using the issuer's public keys (usually published at a URL as a *JWKS*, a key set), and then builds the same kind of user context it would have for a browser.
 
-| Storage | Readable by JavaScript? | Main risk |
-|---|---|---|
-| `localStorage` | Yes | A single XSS bug leaks the token |
-| `HttpOnly` cookie | No | CSRF, reduced by setting `SameSite` explicitly |
+So the JWT is how a client *arrives*, and the session is what the server *keeps* while the user works. That mixture explained my original confusion: the app really was stateful, the servers really were interchangeable, and the JWT and the session were doing different jobs.
 
-An `HttpOnly` cookie is the safer default for browser apps, and it works for JWTs too. You can store a JWT in a cookie. People often assume JWT means `localStorage`, but that was a convention, not a rule.
-
-## So which one?
-
-Rules of thumb that have held up for me:
+## Which should you use?
 
 | Situation | Reach for |
 |---|---|
 | One web app, one backend, users log in through a browser | **Sessions.** Simple, easy to revoke, nothing clever to get wrong |
-| Several services that need to trust the same login | **Tokens (JWT).** Each service verifies locally |
+| Several servers behind a load balancer | **Sessions in a shared store**, or tokens. Never sessions in one server's memory |
+| Several services that must trust the same login | **Tokens (JWT).** Each service verifies locally |
 | Mobile apps or third-party API clients | **Tokens.** There is no cookie jar to lean on |
-| You must be able to kick a user out *right now* | **Sessions**, or very short tokens with a revocable refresh token |
+| You must be able to kick a user out right now | **Sessions**, or very short tokens with a revocable refresh token |
 
-If you are not sure, start with sessions. Move to tokens when you actually feel the pain of sharing login state across services, not because a blog post said tokens are modern.
+If you are not sure, start with sessions in a shared store. Move to tokens when you actually feel the pain of sharing login state across services, not because a blog post said tokens are modern.
 
 ## The takeaway
 
-Sessions and JWTs are two answers to *where does the memory live?*
+1. HTTP forgets you, so every request needs proof of who you are.
+2. A **session** keeps the memory on the server. A **JWT** puts the memory in a signed token.
+3. A session kept in **one server's memory** breaks the moment a load balancer sends you to a different server.
+4. Fix it by **moving the state out of the servers** (a shared store) or **out of the server side entirely** (a JWT), not by pinning users to machines.
+5. "Stateless" does not mean the state disappeared. It means you chose where to keep it, and the moment you need to revoke something, it comes back.
 
-- **Sessions:** memory on the server. Easy to revoke, costs a lookup, harder to spread across servers.
-- **JWT:** memory in the token. Cheap to verify anywhere, painful to revoke.
+## Quick glossary
 
-"Stateless" doesn't mean the state disappeared. It means you moved it, and the moment you need to revoke something, it comes back.
+| Word | Plain meaning |
+|---|---|
+| Cookie | A small text value the browser stores and sends back automatically |
+| Session | A record the server keeps about a logged-in user, found by an ID in a cookie |
+| JWT | A signed token that carries the facts about a user, so the server keeps nothing |
+| Stateful | Something must remember things between requests |
+| Stateless | Each request carries everything needed, nothing is remembered |
+| Load balancer | A traffic cop that spreads requests across several servers |
+| Sticky session | The load balancer always sends the same user to the same server |
+| Shared session store | One place, outside the servers, where every server reads and writes sessions |
+| Revocation | Cancelling a login before it would naturally expire |

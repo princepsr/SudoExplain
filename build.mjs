@@ -545,13 +545,14 @@ function archivePage(posts) {
   });
 }
 
-// "On this page" list built from the h2/h3 headings; only for posts with at least three sections.
+// "On this page" list built from the h2 headings; only for posts with at least three sections.
 function tableOfContents(html) {
-  const items = [...html.matchAll(/<h([23]) id="([^"]+)">(?:<a class="anchor"[^>]*>#<\/a>)?(.*?)<\/h\1>/g)].map(
-    ([, level, id, inner]) => ({ level: Number(level), id, text: inner.replace(/<[^>]+>/g, '') }),
-  );
-  if (items.filter((i) => i.level === 2).length < 3) return '';
-  const links = items.map((i) => `<li class="toc-l${i.level}"><a href="#${i.id}">${i.text}</a></li>`).join('');
+  const items = [...html.matchAll(/<h2 id="([^"]+)">(?:<a class="anchor"[^>]*>#<\/a>)?(.*?)<\/h2>/g)].map(([, id, inner]) => ({
+    id,
+    text: inner.replace(/<[^>]+>/g, ''),
+  }));
+  if (items.length < 3) return '';
+  const links = items.map((i) => `<li><a href="#${i.id}">${i.text}</a></li>`).join('');
   return `<aside class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul>${links}</ul></aside>`;
 }
 

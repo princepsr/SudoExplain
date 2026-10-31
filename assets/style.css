@@ -439,10 +439,6 @@ a:hover {
   margin-top: 0.45rem;
 }
 
-.toc .toc-l3 {
-  padding-left: 0.8rem;
-}
-
 .toc a {
   color: var(--muted);
   text-decoration: none;
@@ -676,8 +672,14 @@ a:hover {
   border-color: var(--accent);
 }
 
-.table-wrap {
+.table-wrap,
+.diagram {
   overflow-x: auto;
+}
+
+.diagram svg {
+  display: block;
+  min-width: 560px;
 }
 
 .prose table {
