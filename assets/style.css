@@ -1085,22 +1085,33 @@ mark {
     align-items: start;
   }
 
-  /* The card runs from the top of the heading to the bottom of the text. */
+  /* The card stays in view beside the text. It is as tall as its content, up to 80% of the screen. When
+     the screen is short, the oldest lines scroll off the top and the live prompt stays visible, as in a
+     real terminal. */
   .terminal-wrap {
-    display: flex;
-    align-self: stretch;
+    position: sticky;
+    top: 5.5rem;
     margin-top: 3.5rem;
     max-width: none;
   }
 
   .terminal {
     display: flex;
-    flex: 1;
     flex-direction: column;
+    max-height: 80vh;
+  }
+
+  .terminal-bar {
+    flex: none;
   }
 
   .terminal-body {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 0;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, transparent, #000 1rem);
   }
 }
 
@@ -1133,7 +1144,7 @@ mark {
 }
 
 .terminal-body {
-  padding: 0.9rem 1rem 1.1rem;
+  padding: 1.1rem 1rem;
 }
 
 .t-line + .t-line {
@@ -1188,7 +1199,7 @@ mark {
   .t-line {
     opacity: 0;
     animation: t-reveal 0.2s ease forwards;
-    animation-delay: calc(0.35s + var(--i) * 0.5s);
+    animation-delay: calc(0.3s + var(--i) * 0.28s);
   }
 
   .t-cursor {

@@ -858,20 +858,33 @@ function aboutTerminal(posts, tagMap) {
   const shown = topics.slice(0, 8);
   const topicLinks = shown.map(([slug]) => `<a href="${withBase(`/tags/${slug}/`)}">${esc(slug)}/</a>`).join('');
   const more = topics.length > shown.length ? `<span>+${topics.length - shown.length} more</span>` : '';
-  const latest = published[0];
+  const links = [
+    cfg.github && `<a href="${esc(cfg.github)}" rel="noopener">github/</a>`,
+    cfg.linkedin && `<a href="${esc(cfg.linkedin)}" rel="noopener">linkedin/</a>`,
+    `<a href="${withBase('/rss.xml')}">rss.xml</a>`,
+  ].filter(Boolean);
 
-  const lines = [
-    ['whoami', esc(slugify(cfg.author))],
-    ['ls topics/', topics.length ? `<span class="t-links">${topicLinks}${more}</span>` : '(none yet)'],
-    ['ls posts/ | wc -l', String(published.length)],
-  ];
-  if (latest) {
-    lines.push(['tail -n 1 posts.log', `${isoDay(latest.date)} <a href="${withBase(`/posts/${latest.slug}/`)}">${esc(latest.title)}</a>`]);
+  const lines = [];
+  const add = (cmd, ...outs) => lines.push([cmd, outs]);
+  add('whoami', esc(slugify(cfg.author)));
+  add('cat mission.txt', esc(cfg.tagline));
+  add('ls topics/', topics.length ? `<span class="t-links">${topicLinks}${more}</span>` : '(none yet)');
+  if (published.length) {
+    const minutes = published.reduce((sum, p) => sum + p.minutes, 0);
+    const newest = published.reduce((a, b) => (b.updated > a ? b.updated : a), published[0].updated);
+    add('ls posts/ | wc -l', String(published.length));
+    add(
+      'ls -t posts/ | head -3',
+      ...published.slice(0, 3).map((p) => `${isoDay(p.date)} <a href="${withBase(`/posts/${p.slug}/`)}">${esc(p.title)}</a>`),
+    );
+    add('cat reading-time', `${minutes} min of reading so far`);
+    add('cat last-updated', isoDay(newest));
   }
-  lines.push(['sudo explain --topic anything', '<span class="t-ok">Permission granted. Doubt cleared.</span>']);
+  add('ls links/', `<span class="t-links">${links.join('')}</span>`);
+  add('sudo explain --topic anything', '<span class="t-ok">Permission granted. Doubt cleared.</span>');
 
   const rows = lines
-    .map(([cmd, out], i) => `<div class="t-line" style="--i:${i}"><p class="t-cmd">${esc(cmd)}</p><p class="t-out">${out}</p></div>`)
+    .map(([cmd, outs], i) => `<div class="t-line" style="--i:${i}"><p class="t-cmd">${esc(cmd)}</p>${outs.map((o) => `<p class="t-out">${o}</p>`).join('')}</div>`)
     .join('');
   const prompt = `<div class="t-line" style="--i:${lines.length}"><p class="t-cmd"><span class="t-cursor" aria-hidden="true"></span></p></div>`;
   return `<aside class="terminal-wrap" aria-label="This site, as a terminal session">
