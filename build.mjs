@@ -478,6 +478,7 @@ function loadPosts() {
       }
       return {
         slug: meta.slug || file.replace(/\.md$/, ''),
+        aliases: (meta.aliases || '').split(',').map((a) => a.trim()).filter(Boolean),
         title: meta.title,
         description: meta.description || excerpt(body),
         date,
@@ -488,11 +489,23 @@ function loadPosts() {
         suggestions: CHECK ? writingSuggestions(meta, body) : [],
         html: markdown(body),
       };
-    })
-    .filter((p) => DRAFTS || !p.draft)
-    .sort((a, b) => b.date - a.date);
+    });
 
-  return posts;
+  assertUniqueAddresses(posts);
+  return posts.filter((p) => DRAFTS || !p.draft).sort((a, b) => b.date - a.date);
+}
+
+// A post's slug and its old-address aliases are all web addresses under /posts/, so none may repeat.
+function assertUniqueAddresses(posts) {
+  const owner = new Map();
+  for (const p of posts) {
+    for (const name of [p.slug, ...p.aliases]) {
+      if (owner.has(name)) {
+        throw new Error(`"${name}" is used by both "${owner.get(name)}" and "${p.slug}": slugs and aliases must be unique`);
+      }
+      owner.set(name, p.slug);
+    }
+  }
 }
 
 function loadPage(name) {
@@ -826,6 +839,28 @@ ${page.html}
   });
 }
 
+// Static hosting has no server redirects, so an old address gets a tiny page that forwards to the new one.
+// The script keeps any #section in the link; the meta tag covers readers without JavaScript.
+function redirectPage(post) {
+  const target = withBase(`/posts/${post.slug}/`);
+  const canonical = `${cfg.url}${cfg.basePath}/posts/${post.slug}/`;
+  return `<!doctype html>
+<html lang="${cfg.lang}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(post.title)} · ${esc(cfg.title)}</title>
+<link rel="canonical" href="${esc(canonical)}">
+<meta http-equiv="refresh" content="0; url=${esc(target)}">
+<script>location.replace(${JSON.stringify(target)} + location.hash)</script>
+</head>
+<body>
+<p>This post has moved to <a href="${esc(target)}">${esc(post.title)}</a>.</p>
+</body>
+</html>
+`;
+}
+
 function notFoundPage() {
   return layout({
     title: 'Not found',
@@ -917,6 +952,7 @@ function build() {
   posts.forEach((p, i) => {
     emit(`/posts/${p.slug}/`, postPage(p, posts[i - 1], posts[i + 1], relatedPosts(p, posts)));
     if (!p.draft) paths.push({ path: `/posts/${p.slug}/`, date: p.updated });
+    for (const alias of p.aliases) emit(`/posts/${alias}/`, redirectPage(p));
   });
   for (const [slug, tag] of tagMap) {
     emit(`/tags/${slug}/`, tagPage(slug, tag));

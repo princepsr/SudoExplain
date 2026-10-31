@@ -7,7 +7,7 @@ It has two parts:
 1. **The mechanics.** How to create, preview and publish a post. About ten minutes to learn.
 2. **The craft.** How to structure and word a post so beginners understand it. This is the part that makes the blog good.
 
-The [sessions post](../content/posts/sessions-vs-jwt.md) is the worked example throughout. Open it next to this guide.
+The [sessions post](../content/posts/sessions-jwt-and-load-balancers.md) is the worked example throughout. Open it next to this guide.
 
 ## What you need
 
@@ -135,6 +135,19 @@ This repository commits as your personal account, set up for this repo only, so 
 ### Step 7: Fix mistakes after publishing
 
 Edit the file, add `updated: 2026-11-12` (the date of the fix) to the front matter, then commit and push as above. Readers will see "Updated" next to the date, and the address stays the same.
+
+### Changing a post's address
+
+If the post changes so much that its title no longer matches its address, rename the file to match, then list the old name under `aliases` in the front matter:
+
+```markdown
+---
+title: Sessions, JWTs and load balancers explained
+aliases: sessions-vs-jwt
+---
+```
+
+The old address then forwards to the new one, so links people already shared keep working, including links to a section such as `#fix-2-a-shared-session-store`. Do the rename before the post is widely shared if you can, because search engines take a little while to follow the move.
 
 ## Part 2: How to explain so a beginner understands
 

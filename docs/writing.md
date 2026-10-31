@@ -2,7 +2,7 @@
 
 This page is the reference: every front matter field and every Markdown feature the site supports. If you are new, or want to know how to *explain* things well, start with [How to write a post](writing-guide.md).
 
-Every post is one Markdown file in `content/posts/`. The filename becomes the URL: `sessions-vs-jwt.md` is published at `/posts/sessions-vs-jwt/`.
+Every post is one Markdown file in `content/posts/`. The filename becomes the URL: `sessions-jwt-and-load-balancers.md` is published at `/posts/sessions-jwt-and-load-balancers/`.
 
 ## Front matter
 
@@ -26,6 +26,7 @@ tags: authentication, web, system-design
 | `draft` | No | `true` hides the post from the published site. Drafts are visible in `--serve` and `--drafts` builds |
 | `updated` | No | `YYYY-MM-DD`. Set it when you revise a post. Readers see "Updated …" next to the date, and search engines see the new date |
 | `slug` | No | Overrides the filename in the URL |
+| `aliases` | No | Old addresses of this post, comma-separated (for example `sessions-vs-jwt`). Each one forwards to the current address, so renamed posts do not break existing links |
 
 A missing `title` or an invalid date stops the build with an error that names the file.
 
