@@ -325,11 +325,16 @@ a:hover {
   border-bottom: 1px solid var(--line);
 }
 
-.post-item time {
+.post-item .when {
   grid-row: span 3;
+  margin: 0;
   padding-top: 0.35rem;
   font: 0.85rem var(--sans);
   color: var(--muted);
+}
+
+.post-item .when span {
+  display: block;
 }
 
 .post-item h3 {
@@ -1011,9 +1016,21 @@ mark {
     grid-template-columns: 1fr;
   }
 
-  .post-item time {
+  .post-item .when {
     grid-row: auto;
     padding: 0;
+  }
+
+  .post-item .when span::before {
+    content: "\00b7\00a0";
+  }
+
+  .post-item .when span {
+    display: inline;
+  }
+
+  .post-item .when time::after {
+    content: " ";
   }
 
   .prose pre {

@@ -641,7 +641,7 @@ const tagList = (tags, links = true) =>
     : '';
 
 const postItem = (p) => `<li class="post-item">
-  <time datetime="${isoDay(p.date)}">${fmtDate(p.date)}</time>
+  <p class="when"><time datetime="${isoDay(p.date)}">${fmtDate(p.date)}</time><span>${p.minutes} min read</span></p>
   <h3><a href="${withBase(`/posts/${p.slug}/`)}">${esc(p.title)}</a>${p.draft ? ' <span class="draft">(draft)</span>' : ''}</h3>
   ${p.description ? `<p>${esc(p.description)}</p>` : ''}
   ${tagList(p.tags)}
