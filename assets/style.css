@@ -1079,9 +1079,9 @@ mark {
     align-items: start;
   }
 
-  /* The card stays in view beside the text. It is as tall as its content, up to 80% of the screen. When
-     the screen is short, the oldest lines scroll off the top and the live prompt stays visible, as in a
-     real terminal. */
+  /* The card stays in view beside the text and is as tall as its content, up to the space left under the
+     header. assets/terminal.js hides the least important lines when they do not all fit; if that script is
+     missing, the oldest lines scroll off the top and the live prompt stays visible, as in a real terminal. */
   .terminal-wrap {
     position: sticky;
     top: var(--sticky-top);
@@ -1092,7 +1092,7 @@ mark {
   .terminal {
     display: flex;
     flex-direction: column;
-    max-height: 80vh;
+    max-height: calc(100vh - var(--sticky-top) - 1.5rem);
   }
 
   .terminal-bar {
@@ -1198,19 +1198,6 @@ mark {
 
   .t-cursor {
     animation: t-blink 1.1s steps(1) infinite;
-  }
-}
-
-/* Short windows get a shorter terminal, so no lines are ever cut off: the extras drop out first. */
-@media (max-height: 859px) {
-  .t-x1 {
-    display: none;
-  }
-}
-
-@media (max-height: 699px) {
-  .t-x2 {
-    display: none;
   }
 }
 

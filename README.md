@@ -50,6 +50,7 @@ New to this? Follow [How to write a post](docs/writing-guide.md). It starts from
 | `assets/style.css` | All styling (design tokens at the top, light and dark themes) |
 | `assets/theme.js` | Theme toggle, code-copy buttons and the contents-list highlight |
 | `assets/search.js` | Client-side search on the Writing page |
+| `assets/terminal.js` | Fits the About-page terminal to the window height |
 | `static/` | Copied as-is to the site root (favicon, social card, post images) |
 | `site.config.json` | Site name, tagline, links, URL |
 | `new-post.mjs` | Creates a draft post from `docs/post-template.md` |
