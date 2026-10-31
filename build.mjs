@@ -310,8 +310,7 @@ function markdown(src) {
       i++;
       while (i < lines.length && !/^```\s*$/.test(lines[i])) buf.push(lines[i++]);
       i++;
-      const label = m[1] ? ` data-lang="${esc(m[1])}"` : '';
-      out.push(`<pre${label}><code>${highlight(buf.join('\n'), m[1])}</code></pre>`);
+      out.push(`<pre><code>${highlight(buf.join('\n'), m[1])}</code></pre>`);
     } else if ((m = line.match(HEADING))) {
       out.push(heading(m[1].length, m[2]));
       i++;

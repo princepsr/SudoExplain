@@ -108,7 +108,7 @@ This builds the site including drafts and then reviews every post. It never fail
 | Missing or long description | Search results show a blank or a cut-off line | Write one sentence under 160 characters |
 | Title over 60 characters | Search results cut it off | Shorten it |
 | No tags | Related posts and topic pages cannot find it | Add two to four tags |
-| Code block without a language | No colouring, and the label is missing | Add `java`, `bash`, `pseudocode` or `text` |
+| Code block without a language | No colouring | Add `java`, `bash`, `pseudocode` or `text` |
 | Image without alt text | Screen readers say nothing | Describe the image between the `[ ]` |
 | Empty section | A heading followed straight by another heading | Fill it in or delete the heading |
 | Long post with no summary box | Skimmers cannot tell what is inside | Add a `[!SUMMARY]` box at the top |

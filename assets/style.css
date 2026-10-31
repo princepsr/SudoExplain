@@ -748,17 +748,6 @@ a:hover {
   tab-size: 4;
 }
 
-.prose pre[data-lang]::before {
-  content: attr(data-lang);
-  position: absolute;
-  top: 0.45rem;
-  right: 4.6rem;
-  font: 0.7rem var(--sans);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
 .prose pre code {
   display: block;
   padding: 0;

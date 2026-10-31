@@ -69,7 +69,7 @@ public final class Greeter { }
 | `yaml` | `yml` |
 | `html` | `xml`, `svg` |
 
-On phones, long lines of code wrap instead of scrolling sideways, so keep the important words early in a line and keep lines under about 70 characters. On larger screens nothing wraps. Any other tag, or none, renders as plain text with special characters escaped. Use `text` for output you do not want coloured, and `pseudocode` for language-neutral concept snippets (the tag shows as a small label on the block). The highlighter is a regex tokenizer, so unusual syntax can occasionally be coloured imperfectly.
+On phones, long lines of code wrap instead of scrolling sideways, so keep the important words early in a line and keep lines under about 70 characters. On larger screens nothing wraps. Any other tag, or none, renders as plain text with special characters escaped. Use `text` for output you do not want coloured, and `pseudocode` for language-neutral concept snippets. The highlighter is a regex tokenizer, so unusual syntax can occasionally be coloured imperfectly.
 
 To add a language, add an entry to `LANGS` and its names to `LANG_ALIASES` in `build.mjs`. Colours live in `assets/style.css` under the `--tok-*` variables.
 
