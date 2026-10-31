@@ -99,6 +99,20 @@ To caption a diagram, wrap it in a figure (keep blank lines out of the block):
 </figure>
 ``` It is built automatically from your `##` headings, so give them short, clear names. Nothing to configure.
 
+## Related posts and search
+
+Both are automatic. There is nothing to configure when you add a post.
+
+**Keep reading (related posts).** At the end of every post, up to three other posts are suggested: the ones sharing the most tags come first, then the newest. Use consistent tags (always `system-design`, never `system design` or `systemdesign` in another post) so the suggestions stay relevant. Nothing is shown while the site has only one post.
+
+**Search.** The Writing page has a search box (also reachable from the magnifier icon in the header, and by pressing `/` on that page). It searches titles, descriptions, tags and post text, and every word you type must match. Matches in the title and tags rank higher, and the matching words are highlighted. A link like `/posts/?q=jwt` opens the page with a search already filled in.
+
+How it works, in case you want to change it:
+
+- The build writes `/search-index.json` with each post's title, description, tags, date and plain text. Drafts are left out of published builds.
+- Only the first 6000 characters of each post's text are indexed, which keeps the file small (about 15 KB for a handful of posts). Put the key terms early, or in the title, description or tags.
+- The search runs entirely in the reader's browser (`assets/search.js`). Nothing is sent to a server. Without JavaScript the box stays hidden and the full list is shown.
+
 ## Other pages
 
 - **About page:** `content/about.md`. It needs only a `title` in its front matter.

@@ -45,7 +45,8 @@ node build.mjs --drafts   # include drafts
 | `content/posts/*.md` | Posts |
 | `content/about.md` | About page |
 | `assets/style.css` | All styling (design tokens at the top, light and dark themes) |
-| `assets/theme.js` | Theme toggle and code-copy buttons |
+| `assets/theme.js` | Theme toggle, code-copy buttons and the contents-list highlight |
+| `assets/search.js` | Client-side search on the Writing page |
 | `static/` | Copied as-is to the site root (favicon, social card, post images) |
 | `site.config.json` | Site name, tagline, links, URL |
 | `build.mjs` | The generator: Markdown, templates, highlighting, RSS, sitemap, dev server |

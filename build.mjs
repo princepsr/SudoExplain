@@ -411,6 +411,10 @@ const ICON_THEME =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
   '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>';
 
+const ICON_SEARCH =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
+  '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+
 function layout({
   title,
   description,
@@ -423,6 +427,7 @@ function layout({
   modified = '',
   noindex = false,
   jsonLd = null,
+  scripts = [],
 }) {
   const pageTitle = fullTitle || (title ? `${title} · ${cfg.title}` : cfg.title);
   const desc = description || cfg.description;
@@ -472,6 +477,7 @@ function layout({
       ${link('/posts/', 'Writing')}
       ${link('/tags/', 'Topics')}
       ${link('/about/', 'About')}
+      <a class="nav-search" href="${withBase('/posts/#search')}" aria-label="Search posts">${ICON_SEARCH}</a>
       <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle light or dark theme">${ICON_THEME}</button>
     </nav>
   </div>
@@ -485,7 +491,7 @@ ${body}
     <span class="footer-links">${social.join('')}</span>
   </div>
 </footer>
-<script src="${withBase('/assets/theme.js')}" defer></script>
+<script src="${withBase('/assets/theme.js')}" defer></script>${scripts.map((s) => `\n<script src="${withBase(s)}" defer></script>`).join('')}
 </body>
 </html>
 `;
@@ -546,11 +552,59 @@ function archivePage(posts) {
     description: 'Every post, newest first.',
     path: '/posts/',
     nav: '/posts/',
+    scripts: posts.length ? ['/assets/search.js'] : [],
     body: `<div class="wrap">
   <header class="page-head"><h1>Writing</h1><p>${posts.length} post${posts.length === 1 ? '' : 's'}, newest first.</p></header>
-  ${posts.length ? groups : emptyState}
+  ${
+    posts.length
+      ? `<div class="search" id="search-box" hidden>
+    <label class="visually-hidden" for="search">Search posts</label>
+    <input id="search" type="search" placeholder="Search posts (press / to focus)" autocomplete="off" data-index="${withBase('/search-index.json')}">
+  </div>
+  <p class="search-status" id="search-status" role="status" aria-live="polite" hidden></p>
+  <div id="search-results" hidden></div>
+  <div id="post-groups">${groups}</div>`
+      : emptyState
+  }
 </div>`,
   });
+}
+
+// Up to `limit` other posts: most shared tags first, then newest. Time: O(n log n) in the number of posts.
+function relatedPosts(post, posts, limit = 3) {
+  const mine = new Set(post.tags.map(slugify));
+  const shared = (p) => p.tags.filter((t) => mine.has(slugify(t))).length;
+  return posts
+    .filter((p) => p.slug !== post.slug)
+    .map((p) => ({ p, score: shared(p) }))
+    .sort((a, b) => b.score - a.score || b.p.date - a.p.date)
+    .slice(0, limit)
+    .map((x) => x.p);
+}
+
+const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
+
+// Readable text of rendered post HTML for the search index, capped so the index stays small.
+function plainText(html, max = 6000) {
+  return html
+    .replace(/<svg[\s\S]*?<\/svg>/g, ' ')
+    .replace(/<a class="anchor"[^>]*>#<\/a>/g, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&(?:amp|lt|gt|quot|#39);/g, (m) => ENTITIES[m])
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+}
+
+function searchIndex(posts) {
+  return posts.map((p) => ({
+    title: p.title,
+    url: `${cfg.basePath}/posts/${p.slug}/`,
+    description: p.description,
+    tags: p.tags,
+    date: isoDay(p.date),
+    text: plainText(p.html),
+  }));
 }
 
 // "On this page" list built from the h2 headings; only for posts with at least three sections.
@@ -568,7 +622,7 @@ function tableOfContents(html) {
   };
 }
 
-function postPage(post, newer, older) {
+function postPage(post, newer, older, related = []) {
   const { aside, inline: tocInline } = tableOfContents(post.html);
   const updatedNote =
     isoDay(post.updated) === isoDay(post.date)
@@ -613,6 +667,14 @@ function postPage(post, newer, older) {
   <div class="prose">
 ${post.html}
   </div>
+  ${
+    related.length
+      ? `<section class="related" aria-labelledby="related-title">
+    <h2 class="section-title" id="related-title"><span>Keep reading</span></h2>
+    ${postItems(related)}
+  </section>`
+      : ''
+  }
   ${pager}
 </article>
 ${aside}
@@ -756,7 +818,7 @@ function build() {
   emit('/404.html', notFoundPage());
 
   posts.forEach((p, i) => {
-    emit(`/posts/${p.slug}/`, postPage(p, posts[i - 1], posts[i + 1]));
+    emit(`/posts/${p.slug}/`, postPage(p, posts[i - 1], posts[i + 1], relatedPosts(p, posts)));
     if (!p.draft) paths.push({ path: `/posts/${p.slug}/`, date: p.updated });
   });
   for (const [slug, tag] of tagMap) {
@@ -781,6 +843,7 @@ function build() {
 
   const published = posts.filter((p) => !p.draft);
   emit('/rss.xml', rssFeed(published));
+  emit('/search-index.json', JSON.stringify(searchIndex(posts)));
   emit('/sitemap.xml', sitemap(paths));
   emit('/robots.txt', `User-agent: *\nAllow: /\nSitemap: ${cfg.url}${cfg.basePath}/sitemap.xml\n`);
 
