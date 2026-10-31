@@ -5,16 +5,16 @@
   --text: #1f1d1a;
   --muted: #6b665d;
   --line: #e4dfd3;
-  --accent: #d9480f;
+  --accent: #c2410c;
   --accent-soft: #ffe8d9;
   --code-bg: #f3f0e8;
-  --tok-comment: #766f63;
+  --tok-comment: #6b655a;
   --tok-string: #2a7a4b;
-  --tok-number: #b45309;
+  --tok-number: #a34a07;
   --tok-keyword: #b02a68;
   --tok-type: #1d6fa5;
   --tok-fn: #6d4cc0;
-  --tok-meta: #8a6d1a;
+  --tok-meta: #7d6317;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -90,6 +90,17 @@ main {
   flex: 1;
 }
 
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+.prose p,
+.lede {
+  text-wrap: pretty;
+}
+
 ::selection {
   background: var(--accent);
   color: var(--bg);
@@ -148,13 +159,15 @@ a:hover {
 
 .site-header .wrap {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0 1rem;
   min-height: 3.75rem;
 }
 
 .brand {
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
@@ -615,6 +628,7 @@ a:hover {
   padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--line);
   text-align: left;
+  vertical-align: top;
 }
 
 .prose th {
@@ -714,7 +728,22 @@ a:hover {
   }
 
   .site-header .wrap {
-    padding-block: 0.5rem;
+    padding-block: 0.25rem;
+  }
+
+  .brand {
+    gap: 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .site-nav {
+    gap: 0;
+  }
+
+  .site-nav a,
+  .theme-toggle {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.85rem;
   }
 }
 
