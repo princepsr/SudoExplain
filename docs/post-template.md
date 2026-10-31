@@ -6,13 +6,6 @@ tags: topic-one, topic-two
 draft: true
 ---
 
-> [!SUMMARY]
-> By the end you will know:
->
-> 1. [The first thing the reader will understand]
-> 2. [The second thing]
-> 3. [The third thing]
-
 ## The doubt
 
 [The one real question that started this post. One or two sentences. Say why it confused you.]
@@ -20,6 +13,13 @@ draft: true
 > [The question again, in your own words, as a quote.]
 
 [Promise the reader that the answer only makes sense after the basics, and that you will not assume they know any of the words.]
+
+> [!SUMMARY]
+> By the end you will know:
+>
+> 1. [The first thing the reader will understand]
+> 2. [The second thing]
+> 3. [The third thing]
 
 ## First, the basics
 
