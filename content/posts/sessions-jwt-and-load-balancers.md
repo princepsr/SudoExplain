@@ -8,13 +8,19 @@ tags: authentication, web, system-design, scaling
 
 ## The doubt
 
-Here is the question that started this post:
+Picture a website where you log in. You click "My orders", and it greets you by name. The site **remembers who you are**. That memory is called a **session**.
 
-> If a web app keeps a session for every logged-in user, how can it run on several servers behind a load balancer? Isn't a session exactly the thing that ties you to one machine?
+Now picture a busy website that is not run by one computer, but by three identical ones. A gatekeeper stands in front of them and sends each click to whichever computer is free. That gatekeeper is called a **load balancer**.
 
-I hit this while studying an application that remembers a lot about each user (what they have loaded, how long since they last did anything). It still runs spread across several servers. For now, think of a load balancer as a traffic cop that shares requests out between servers. We will define it properly below.
+Here is the puzzle:
 
-It looks like a contradiction. It isn't, but the answer only makes sense after the basics, so we start there. I won't assume you know any of these words.
+1. You log in. Your click goes to **Computer 1**, which remembers you.
+2. You click "My orders". The gatekeeper sends this one to **Computer 2**.
+3. Computer 2 was never told about your login. To it, you are a stranger.
+
+> If one computer remembers me, how does the next one know who I am?
+
+That was my doubt. Big websites with millions of users clearly solve it, so the answer must exist. It only makes sense after a few basics, so we start there. I won't assume you know any of these words.
 
 > [!SUMMARY]
 > By the end you will know:
@@ -113,7 +119,7 @@ A JWT is three chunks of text joined by dots: `header.payload.signature`.
 
 Here `sub` is the subject (the user's ID), `iat` is when the token was issued and `exp` is when it expires, both written as seconds since 1970.
 
-When the token comes back, the server recomputes the seal. If it matches, the facts are trusted. If someone edited even one letter, the seal no longer matches and the token is rejected.
+When the token comes back, the server checks the seal. If it matches, the facts are trusted. If someone edited even one letter, the seal no longer matches and the token is rejected.
 
 ```pseudocode
 # At login (once)
@@ -124,13 +130,35 @@ token = sign(facts, privateKey)
 facts = verify(token, publicKey)
 ```
 
-The two keys work as a pair. The `privateKey` is the secret that only the server knows, and it is the only thing that can create a seal. The `publicKey` can be handed to anyone, and it can check a seal but never make one. (Some systems use a single shared secret for both jobs. The idea is the same.)
-
 There is no lookup and no table. Just a calculation.
+
+### How can a seal be checked but not forged?
+
+This is the part that confuses most people, so here is an analogy. Think of a **postcard with an official stamp** on it.
+
+- Anyone who picks up the postcard can **read** it. Nothing is hidden.
+- Only the post office owns the **stamp**. Nobody else can make a genuine one.
+- The stamp is made from the message itself. Change one word, and the old stamp no longer fits, so the postcard is exposed as fake.
+
+A JWT works the same way, and the two keys are the stamp and the stamp-checker:
+
+| Key | Postcard analogy | What it can do | Who holds it |
+|---|---|---|---|
+| **Private key** | The stamp itself | **Create** a seal | Only the login service. Keep it secret |
+| **Public key** | A checking device | **Check** a seal, but never make one | Anyone. It is safe to hand out |
+
+So the login service stamps tokens with its private key. Every other server holds the public key and can confirm "yes, a genuine stamp, and the words have not changed". Those servers can verify logins, but they cannot invent one.
+
+(Some systems use one shared secret for both jobs instead of a pair. Then every server that can check a token can also forge one. The idea is the same, just less safe to spread around.)
 
 ### One thing that surprises people
 
-A JWT is **signed, not encrypted**. Its chunks are written in Base64, which is only a way of spelling any data with ordinary letters and digits. It is not a secret code. Anyone holding the token can read it. In Java, three lines are enough to open one up, no key needed:
+A JWT is **signed, not encrypted**. Those two words sound alike but mean different things:
+
+- **Encrypted** means scrambled so that only the right key holder can read it, like a locked box.
+- **Signed** means readable by everyone, but protected against changes, like the stamped postcard.
+
+A JWT is the postcard, not the locked box. Its chunks are written in Base64, which is only a way of spelling any data with ordinary letters and digits. It is not a secret code. Anyone holding the token can read it. In Java, three lines are enough to open one up, no key needed:
 
 ```java
 String payload = token.split("\\.")[1];
@@ -372,24 +400,6 @@ Two details matter in practice:
 
 A third option exists, *session replication*, where servers copy sessions to each other. It works for small clusters, but it gets heavy as you grow, which is why a shared store is more common.
 
-### A gotcha: cached copies go stale
-
-Apps often keep more than a login record per user. They keep a working copy of data in memory (say, the projects you have loaded) because reading from memory is far faster than asking the database every time. A saved copy kept close by for quick reuse is called a **cache**.
-
-Now there is a new trap. Server A updates some data. Server B still holds an old copy in its memory and happily serves it. Different users see different truths.
-
-A common fix is a **version number**: a counter stored in the database that goes up every time the data changes. Before trusting a cached copy, a server compares versions:
-
-```pseudocode
-current = database.versionOf("projects")      # cheap: one small number
-
-if cache.version != current:                  # someone changed it elsewhere
-    cache.data    = database.loadProjects()   # reload the fresh copy
-    cache.version = current
-```
-
-Checking one number is cheap. Reloading everything on every request is not. The version number tells you when you must.
-
 ## Fix 3: stop storing sessions on the server at all (JWT)
 
 There is a completely different way to escape the problem: if the server keeps no session, there is nothing to share. That is exactly what a JWT does.
@@ -414,15 +424,6 @@ A JWT is valid until it expires, and the server is not looking anything up, so i
 The usual answer is to make tokens **short-lived** (5 to 15 minutes) and pair them with a **refresh token**. When the short token expires, the client trades the refresh token for a new one. Here is the catch: the refresh token is checked against a **server-side record**, so it can be revoked. You have rebuilt a small session, consulted every few minutes instead of every request.
 
 So "stateless" never meant the state vanished. The honest version is: *JWTs keep state out of the hot path, and in exchange you get weaker, slower revocation.*
-
-## What real systems do: a bit of both
-
-Many real applications use both ideas, each where it fits:
-
-- **Browser users** log in, often through a separate login service (an *identity provider*, like the "Sign in with Google" button, which works through a standard called OAuth2). The server then creates a session, keeps it in a shared store, and the browser holds only the cookie.
-- **Scripts and other apps** call the API with a JWT in a header: `Authorization: Bearer <token>`. The login service that made the token publishes its public keys at a web address (a *JWKS*, short for JSON Web Key Set). Any server can fetch them and check the seal. It then builds the same kind of user context it would have for a browser.
-
-So the JWT is how a client *arrives*, and the session is what the server *keeps* while the user works. That mixture explained my original confusion: the app really was stateful, the servers really were interchangeable, and the JWT and the session were doing different jobs.
 
 ## Which should you use?
 
