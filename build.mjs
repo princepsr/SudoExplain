@@ -538,7 +538,7 @@ function archivePage(posts) {
     description: 'Every post, newest first.',
     path: '/posts/',
     nav: '/posts/',
-    body: `<div class="narrow">
+    body: `<div class="wrap">
   <header class="page-head"><h1>Writing</h1><p>${posts.length} post${posts.length === 1 ? '' : 's'}, newest first.</p></header>
   ${posts.length ? groups : emptyState}
 </div>`,
@@ -613,7 +613,7 @@ function tagsIndexPage(tagMap) {
     description: 'Browse posts by topic.',
     path: '/tags/',
     nav: '/tags/',
-    body: `<div class="narrow">
+    body: `<div class="wrap">
   <header class="page-head"><h1>Topics</h1><p>Browse posts by subject.</p></header>
   ${items ? `<ul class="tag-cloud">${items}</ul>` : emptyState}
 </div>`,
@@ -627,7 +627,7 @@ function tagPage(slug, tag) {
     path: `/tags/${slug}/`,
     noindex: true,
     nav: '/tags/',
-    body: `<div class="narrow">
+    body: `<div class="wrap">
   <header class="page-head"><h1>${esc(tag.name)}</h1><p>${tag.posts.length} post${tag.posts.length === 1 ? '' : 's'}. <a href="${withBase('/tags/')}">All topics</a></p></header>
   ${postItems(tag.posts)}
 </div>`,
@@ -641,7 +641,7 @@ function staticPage(page, path, jsonLd = null) {
     path,
     nav: path,
     jsonLd,
-    body: `<div class="narrow">
+    body: `<div class="wrap">
   <header class="page-head"><h1>${esc(page.title)}</h1></header>
   <div class="prose">
 ${page.html}
@@ -655,7 +655,7 @@ function notFoundPage() {
     title: 'Not found',
     path: '/404.html',
     noindex: true,
-    body: `<div class="narrow">
+    body: `<div class="wrap">
   <header class="page-head"><h1>Page not found</h1><p>That page doesn't exist (or moved). <a href="${withBase('/')}">Go home</a> or browse <a href="${withBase('/posts/')}">all posts</a>.</p></header>
 </div>`,
   });

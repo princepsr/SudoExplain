@@ -33,7 +33,7 @@ To try a serif look instead, open `assets/style.css` and set both of these at th
 --font-display: var(--sans);
 ```
 
-If you change the font size or the column width (`--narrow`), keep lines near 60 to 75 characters, because longer lines are harder to follow.
+Every page shares one container (`--wide`), so headings, lists and articles all start at the same left edge as the logo. Article text is capped at `--read-width` (44rem), which gives about 85 characters per line. If you change the font size or `--read-width`, keep lines under roughly 90 characters, because longer lines are harder to follow.
 
 ## SEO that is built in
 

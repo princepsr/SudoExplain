@@ -22,7 +22,7 @@
   --font-read: var(--sans);
   --font-display: var(--sans);
   --wide: 64rem;
-  --narrow: 38.5rem;
+  --read-width: 44rem;
   color-scheme: light;
 }
 
@@ -127,11 +127,6 @@ a:hover {
 
 .wrap {
   width: min(var(--wide), 100% - 2.5rem);
-  margin-inline: auto;
-}
-
-.narrow {
-  width: min(var(--narrow), 100% - 2.5rem);
   margin-inline: auto;
 }
 
@@ -391,25 +386,30 @@ a:hover {
 }
 
 /* ---------- Article ---------- */
-/* Same centred column as the other pages; the contents list hangs in the right margin. */
+/* Same container as every other page, so the text lines up with the logo.
+   On wide screens the contents list takes the right-hand column. */
 .post-layout {
-  width: min(var(--narrow), 100% - 2.5rem);
+  width: min(var(--wide), 100% - 2.5rem);
   margin-inline: auto;
-  position: relative;
+}
+
+.post {
+  max-width: var(--read-width);
 }
 
 .toc {
   display: none;
 }
 
-@media (min-width: 1240px) {
+@media (min-width: 1100px) {
+  .post-layout {
+    display: grid;
+    grid-template-columns: minmax(0, var(--read-width)) 13rem;
+    justify-content: space-between;
+  }
+
   .toc {
     display: block;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: calc(100% + 2.5rem);
-    width: 13rem;
   }
 
   .toc-inner {
@@ -484,6 +484,7 @@ a:hover {
 }
 
 .prose {
+  max-width: var(--read-width);
   font-family: var(--font-read);
   font-size: 1.125rem;
   line-height: 1.65;
