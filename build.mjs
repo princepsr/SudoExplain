@@ -553,7 +553,7 @@ function tableOfContents(html) {
   }));
   if (items.length < 3) return '';
   const links = items.map((i) => `<li><a href="#${i.id}">${i.text}</a></li>`).join('');
-  return `<aside class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul>${links}</ul></aside>`;
+  return `<aside class="toc" aria-label="On this page"><div class="toc-inner"><p class="toc-title">On this page</p><ul>${links}</ul></div></aside>`;
 }
 
 function postPage(post, newer, older) {
@@ -585,7 +585,7 @@ function postPage(post, newer, older) {
       author: { '@type': 'Person', name: cfg.author },
       publisher: { '@type': 'Person', name: cfg.author },
     },
-    body: `<div class="post-layout${toc ? ' has-toc' : ''}">
+    body: `<div class="post-layout">
 <article class="post">
   <header class="post-head">
     <p class="meta"><time datetime="${isoDay(post.date)}">${fmtDate(post.date)}</time> &middot; ${post.minutes} min read${post.draft ? ' &middot; <span class="draft">Draft</span>' : ''}</p>

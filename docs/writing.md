@@ -82,7 +82,7 @@ Always write meaningful alt text. It is used by screen readers and by search eng
 
 ## "On this page" contents list
 
-Posts with three or more `##` sections get a sticky contents list in the right margin on screens 1100px and wider. It is built automatically from your `##` headings, so give them short, clear names. Nothing to configure.
+Posts with three or more `##` sections get a sticky contents list in the right margin on screens 1240px and wider. The article keeps the same centred column as every other page. It is built automatically from your `##` headings, so give them short, clear names. Nothing to configure.
 
 ## Other pages
 
