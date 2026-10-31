@@ -53,7 +53,7 @@ draft: true
 
 | Field | What to write |
 |---|---|
-| `title` | Plain and specific, ideally under 60 characters so search results do not cut it off |
+| `title` | Put the phrase people would search for first (for example "N+1 query problem: ..."), keep it specific, and stay under 60 characters so search results do not cut it off. The file name becomes the address, so use the same key words in it, short and without filler words |
 | `date` | The publish date, as `YYYY-MM-DD` |
 | `description` | One sentence under 160 characters saying what the reader will understand. It appears in lists and in search results |
 | `tags` | Two to four topics, separated by commas. Look at the Topics page and reuse existing tags, because related posts are matched by tag. Write plain words in lowercase (`networking`, `system-design`) and the site capitalises them for you. Write acronyms in capitals (`AI`, `JWT`), because `ai` would be shown as "Ai" |
@@ -178,6 +178,10 @@ Every post follows the same shape. The sessions post is shown on the right as an
 
 You do not need every row for every post. A short post can be a doubt, the basics and a takeaway. Keep the order: doubt first, solution last.
 
+### Every post needs a production failure
+
+Do not write "what X is". Write "what happens in production when X goes wrong". A post on garbage collection is about a leak that a strong reference causes, not a definition of the collector. A post on caching includes the stampede that its own fix can cause. Readers are mostly engineers who know the common terms, so keep the basics to a paragraph and spend the words on the failure, how to diagnose it, and what each fix costs. If a topic has no failure people really meet, it does not get a post. The list of planned posts is in [post-roadmap.md](post-roadmap.md).
+
 ### Ten habits
 
 1. **Start from a real question.** Use the question you actually asked yourself, in your own words, as a quote. Readers share the doubt before they see the answer.
@@ -187,7 +191,7 @@ You do not need every row for every post. A short post can be a doubt, the basic
 5. **Show it breaking before you fix it.** Readers only care about a solution once they have felt the problem. Show the failure on the smallest case you can, with what they would see on screen.
 6. **Pseudocode for ideas, real code for facts.** Pseudocode (plain steps, no language rules) teaches the concept to everyone. Use real code only when the exact syntax is the point, such as one short Java snippet for decoding a token.
 7. **One idea per paragraph, in short sentences.** Four sentences or fewer per paragraph. Aim for an average of 20 words per sentence. Prefer "use" to "utilise" and "start" to "initiate".
-8. **Draw things that talk to each other.** If your explanation says "A sends to B, which asks C", draw it. Give the figure a caption that says what to notice.
+8. **Draw things that talk to each other.** If your explanation says "A sends to B, which asks C", draw it. The easy way is a `diagram` block, which draws a laptop version and a phone version from a few lines of text (see [writing.md](writing.md)). Give the figure a caption that says what to notice, and put the failure line in the accent colour with a trailing ` !`. Every post longer than about 900 words should have one, and `node build.mjs --check` reminds you.
 9. **Be honest about trade-offs.** Every fix costs something, so say what. Write "this is simplified" when you simplify. Avoid "always" and "never" unless they are literally true.
 10. **Let the reader try it.** A two-minute "See it yourself" exercise, such as looking at a real cookie in the browser tools, turns reading into understanding. Add a warning when an exercise could be risky.
 

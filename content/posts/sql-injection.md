@@ -1,0 +1,180 @@
+---
+title: SQL injection: how one quote breaks your login
+date: 2026-11-01
+description: How SQL injection lets one typed quote rewrite your query and bypass a login, how to find it in your code, and how parameterized queries stop it.
+tags: security, SQL, java
+draft: true
+---
+
+## The doubt
+
+A login form takes a username and a password. The code builds a database query from them and checks whether a row comes back. It has worked for years. Then a tester types a single quote and a few words into the password box and is logged in as a real user, without knowing the password.
+
+The password check did not fail. It was **rewritten**.
+
+> I only asked the database a question about the typed text. How did the typed text change the question?
+
+Because the code glued the text into the question. The database cannot tell which part was the programmer's and which part was typed.
+
+> [!SUMMARY]
+> By the end you will know:
+>
+> 1. How **SQL injection** turns user text into SQL code
+> 2. How to **find it** in code and logs, and test for it safely on your own database
+> 3. The real fix, **parameterized queries**, with a correct Java example
+> 4. The traps: second-order injection, `ORDER BY`, ORM string queries, `LIKE` and "fixes" that are not fixes
+
+## First, data versus code
+
+**SQL** is the language used to ask a relational database for data, for example `SELECT id FROM users WHERE name = 'alice'`. A query has two kinds of content. The **structure** says what to do (`SELECT`, `WHERE`, `AND`). The **values** are the data it works on (`'alice'`).
+
+Think of a form letter with blanks. The letter text is fixed, and you only fill in names. SQL injection is a person who writes in the blank: "and also send them my bank balance". The analogy stops at one point: the database reads the finished letter as one piece, so it cannot tell where your blank was.
+
+## The failure: string concatenation
+
+Here is the vulnerable pattern in Java. It builds the query by joining strings with `+`:
+
+```java
+String sql = "SELECT id FROM users WHERE name = '" + name
+           + "' AND password_hash = '" + pass + "'";
+```
+
+With the normal input `alice` and `hash-of-secret`, the query is:
+
+```sql
+SELECT id FROM users WHERE name = 'alice' AND password_hash = 'hash-of-secret'
+```
+
+Now suppose the second value is `' OR '1'='1`. The finished query becomes:
+
+```sql
+SELECT id FROM users WHERE name = 'alice' AND password_hash = '' OR '1'='1'
+```
+
+In SQL, `AND` binds tighter than `OR`. The condition reads "(name is alice and password is empty) **or** 1 equals 1". The second part is always true, so every row matches and the login succeeds. The quote in the input closed the string early, and the rest became code.
+
+```diagram
+type: sequence
+alt: A login form sends text with a quote to the app, which joins it into SQL and the database returns a row for a wrong password.
+caption: Figure 1. The quote ends the string early, so the typed text becomes part of the query.
+actors: Browser | App | Database
+Browser -> App: password = ' OR '1'='1
+App -> Database: ... password_hash = '' OR '1'='1'
+note App: text was glued into the query !
+Database --> App: 1 row matched !
+App --> Browser: login succeeded
+```
+
+I ran this against an in-memory H2 database (a small Java database) with both versions of the code. The glued query logged in with a wrong password. The parameterized version, shown below, rejected it. In real systems the same trick reads data from other tables, changes rows or, with powerful database accounts, reaches the server itself.
+
+> [!WARNING]
+> Test for SQL injection only on systems you own or have written permission to test, and only against a test database. Probing other people's systems is illegal in most places, even when "just looking".
+
+## Why it is still common
+
+OWASP, a nonprofit that publishes web security guidance, has listed injection near the top of its Top 10 for many years (first in 2017, third in 2021, fifth in 2025). The reasons are boring. String building is the first thing a beginner learns. Quick scripts and reports grow into production code. And one forgotten concatenated query in a thousand safe ones is enough.
+
+## How to diagnose it
+
+**1. Search the code for string-built queries.** Look for SQL keywords inside strings that are joined with `+` or `String.format`:
+
+```bash
+grep -rnEi '"[^"]*(select|insert|update|delete)[^"]*"\s*\+' src/
+grep -rnE '(createQuery|createNativeQuery|executeQuery|executeUpdate)\(.*\+' src/
+```
+
+These patterns catch the common shapes, but not all. A query built across several lines or in a helper method needs a careful read. Review every query that includes a variable you did not write yourself.
+
+**2. Read the logs and error messages.** Attack attempts often leave a single quote, `--`, `UNION SELECT` or `OR 1=1` in request logs. Database errors such as "syntax error near" with user text inside them mean the text reached the parser as code. Treat those as a strong sign.
+
+**3. Test safely on your own test database.** In a test environment, enter a single quote `'` in each field. A database error, or a page that behaves differently, suggests that the input reaches a query unescaped. Use the harmless `' OR '1'='1` only against your own test data. Static analysis tools and OWASP's testing guide can automate this.
+
+**4. Check database permissions.** If the application account can drop tables or read every schema, a small bug becomes a large breach. See fix 4.
+
+## Fix 1: parameterized queries
+
+The fix is to send the structure and the values **separately**. A **parameterized query** (also called a prepared statement) puts a `?` marker where each value goes. The driver sends the structure and the values separately, so the values are only ever treated as data. (Some drivers, such as MySQL's Connector/J by default, escape the values on the client instead. That is still safe with a prepared statement.)
+
+```java
+String sql = "SELECT id FROM users WHERE name = ? AND password_hash = ?";
+try (PreparedStatement ps = connection.prepareStatement(sql)) {
+    ps.setString(1, name);
+    ps.setString(2, pass);
+    try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+    }
+}
+```
+
+With the input `' OR '1'='1`, the database looks for a password that literally equals that text. Nothing matches. The attack becomes an ordinary wrong password.
+
+The cost is almost nothing. Prepared statements can be faster when a driver reuses a server-side plan, but do not count on it. The security benefit is the reason to use them. The one rule is that you must **never** concatenate input into the SQL text before calling `prepareStatement`. That throws away the protection.
+
+(A real login would also compare a salted password hash in code, not in SQL. The query here is only to show the mechanism.)
+
+## Fix 2: use ORMs and builders correctly
+
+An **ORM** (object-relational mapper) such as Hibernate writes SQL for you. Its generated queries are safe. Its **string queries** are not, when you build them by hand. HQL and JPQL are the query languages of Hibernate and JPA, and native queries are raw SQL.
+
+```java
+// Vulnerable: input is glued into HQL
+session.createQuery("from User u where u.name = '" + name + "'");
+
+// Safe: a named parameter
+session.createQuery("from User u where u.name = :name", User.class)
+       .setParameter("name", name);
+```
+
+The same applies to Spring Data's `@Query` and to native queries. Use `:name` or `?1` parameters. OWASP's cheat sheet states that Hibernate queries can be vulnerable to injection, and says to bind untrusted values rather than concatenate them.
+
+## Fix 3: allow-lists for what cannot be a parameter
+
+Parameters carry **values** only. They cannot stand in for a column name, a table name or `ASC` and `DESC`. For `ORDER BY name`, map the choice to a fixed set that **you** own:
+
+```java
+private static final Map<String, String> SORTABLE =
+        Map.of("name", "name", "created", "created_at");
+
+String col = requested == null ? "created_at" : SORTABLE.getOrDefault(requested, "created_at");
+String dir = "desc".equalsIgnoreCase(direction) ? "DESC" : "ASC";
+String sql = "SELECT id, name FROM customers ORDER BY " + col + " " + dir;
+```
+
+I compiled and ran this. A request like `name; DROP TABLE x` falls back to `created_at`. Only strings from your own map ever reach the SQL.
+
+## Fix 4: least privilege
+
+Give the application's database account only what it needs: usually `SELECT`, `INSERT`, `UPDATE` and `DELETE` on its own tables, and no admin rights. OWASP lists this as a way to **limit the damage** of an attack, not to prevent it. It is a second wall, not the first.
+
+## Why escaping is not the fix
+
+Escaping means adding a backslash or doubled quote before special characters. OWASP strongly discourages it. Rules differ between databases and settings, and one missed character or setting change breaks it. Parameters never need escaping, because the value never becomes code.
+
+## When the fix goes wrong
+
+- **Second-order injection.** The app stores `bob'--` safely with a parameterized `INSERT`. Later, another part of the code reads that name from the database and glues it into a query. Stored data is not trusted data.
+- **`LIKE` wildcards.** Parameters stop injection, but a user who types `%` still matches everything in a `LIKE` search. Escape `%` and `_` in the search term and declare an `ESCAPE` character.
+- **Client-side validation only.** A browser check is a convenience. An attacker sends requests directly, so the server must be safe on its own.
+- **Verbose errors.** A page that prints the failed query or a stack trace teaches attackers your table names. Log details on the server, and show users a generic message.
+- **Safe at one layer only.** A parameterized query is safe, but a stored procedure that builds dynamic SQL inside from its arguments is not.
+- **Validation as the only defense.** Rejecting the word `DROP` blocks the harmless and misses the clever. Use it as an extra layer.
+
+## Which should you use?
+
+| Situation | Reach for |
+|---|---|
+| Any value from a user, file or API | **Parameterized query** |
+| HQL, JPQL or native query in an ORM | **Named parameters**, never string joins |
+| Column name or sort direction from a user | **Allow-list map** |
+| Damage if something slips through | **Least-privilege account** |
+| Stored data used in later queries | **Parameters again**, every time |
+
+If you are not sure whether a query is safe, ask whether any part of its text came from outside your code. If yes, use a parameter, or an allow-list for names.
+
+## The takeaway
+
+1. SQL injection happens when **user text is joined into a query**, so it becomes code instead of data.
+2. Find it by searching for **string-built queries** and by watching logs and errors for stray quotes and SQL keywords.
+3. The fix is the **parameterized query**. Never join input into the SQL text before preparing it.
+4. ORM string queries are not safe by themselves. Use **named parameters**, and an **allow-list** for column names and sort order.
+5. Escaping and keyword blocking are not fixes. Add **least privilege** and generic error messages as extra layers.
