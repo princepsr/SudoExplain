@@ -1180,6 +1180,13 @@ mark {
   }
 }
 
+/* Phones have little room, so the terminal is left out there. */
+@media (max-width: 640px) {
+  .terminal-wrap {
+    display: none;
+  }
+}
+
 @keyframes t-reveal {
   to {
     opacity: 1;

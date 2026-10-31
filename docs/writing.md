@@ -121,5 +121,5 @@ How it works, in case you want to change it:
 
 ## Other pages
 
-- **About page:** `content/about.md`. It needs only a `title` in its front matter. In the right-hand column (below the text on phones and tablets) it shows a small terminal window that is built from your site: your name, your topics as links, how many posts you have, and your latest post. It updates itself as you publish, and the lines appear one by one unless the visitor has asked for reduced motion. To change its commands, edit `aboutTerminal` in `build.mjs`; its colours are the `--term-*` variables in `assets/style.css`.
+- **About page:** `content/about.md`. It needs only a `title` in its front matter. In the right-hand column on laptops (below the text on tablets, and left out on phones) it shows a small terminal window that is built from your site: your name, your topics as links, how many posts you have, and your latest post. It updates itself as you publish, and the lines appear one by one unless the visitor has asked for reduced motion. To change its commands, edit `aboutTerminal` in `build.mjs`; its colours are the `--term-*` variables in `assets/style.css`.
 - **Navigation** (Writing, Topics, About) is fixed in `build.mjs`. Edit the `layout` function to change it.
