@@ -430,6 +430,7 @@ function writingSuggestions(meta, body) {
   if (proseWords / 220 > 20) out.push(`about ${Math.round(proseWords / 220)} minutes of reading; consider splitting into a series`);
   if (/^## .+\n\s*\n##? /m.test(body)) out.push('a "##" heading is followed straight by another heading, so a section is empty');
   if (/!\[\]\(/.test(body)) out.push('an image has no alt text; describe it between the [ ] brackets');
+  if (/<div class="diagram">/.test(body)) out.push('a diagram has no phone version; add an upright one in <div class="diagram diagram-tall"> (see docs/writing.md)');
   if (/\{\{|\[[A-Z][^\]\n]{10,}\](?!\()/.test(body)) out.push('template placeholder text like [..] is still in the post');
   return out;
 }
@@ -926,7 +927,8 @@ function build() {
   cfg = JSON.parse(readFileSync(join(ROOT, 'site.config.json'), 'utf8'));
   if (SERVE) cfg.basePath = '';
 
-  rmSync(DIST, { recursive: true, force: true });
+  // On Windows, antivirus or the preview browser can hold dist/ for a moment, so retry before giving up.
+  rmSync(DIST, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 });
   mkdirSync(DIST, { recursive: true });
   for (const dir of ['static', 'assets']) {
     const from = join(ROOT, dir);
@@ -1002,6 +1004,28 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
+// One string describing every source file (path, modified time, size); it changes when any of them is saved.
+function sourceSignature() {
+  const parts = [];
+  const walk = (path) => {
+    const info = statSync(path);
+    if (info.isDirectory()) {
+      for (const name of readdirSync(path)) walk(join(path, name));
+    } else {
+      parts.push(`${path}:${info.mtimeMs}:${info.size}`);
+    }
+  };
+  try {
+    for (const target of ['content', 'assets', 'static', 'site.config.json']) {
+      const path = join(ROOT, target);
+      if (existsSync(path)) walk(path);
+    }
+  } catch {
+    return `unreadable:${Date.now()}`; // a file vanished mid-save: report a change so the next event rebuilds
+  }
+  return parts.join('|');
+}
+
 function serve(port = 4000) {
   const respond = (req, res) => {
     const urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
@@ -1012,12 +1036,15 @@ function serve(port = 4000) {
       return;
     }
     if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
+    // Read the file before sending any headers, so a file that vanishes mid-rebuild cannot leave a half-sent reply.
     if (!existsSync(file)) {
-      res.writeHead(404, { 'Content-Type': MIME['.html'] }).end(readFileSync(join(DIST, '404.html')));
+      const notFound = readFileSync(join(DIST, '404.html'));
+      res.writeHead(404, { 'Content-Type': MIME['.html'] }).end(notFound);
       return;
     }
+    const content = readFileSync(file);
     res.writeHead(200, { 'Content-Type': MIME[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
-    res.end(readFileSync(file));
+    res.end(content);
   };
 
   createServer((req, res) => {
@@ -1026,14 +1053,25 @@ function serve(port = 4000) {
     } catch (err) {
       // dist/ is briefly missing while a rebuild runs, or the URL is malformed: answer instead of crashing
       console.warn(`Request ${req.url} failed: ${err.message}`);
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
       res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Rebuilding, refresh in a moment.');
     }
   }).listen(port, () => console.log(`Serving http://localhost:${port}  (drafts visible, rebuilds on save)`));
 
+  // Rebuilds are debounced, and only run when a watched file's modified time or size really changed.
+  // That ignores the stray events Windows reports for reads and scans, and never drops a real save.
   let timer;
-  const rebuild = () => {
+  let lastSignature = sourceSignature();
+  const rebuild = (_event, filename) => {
+    if (process.env.DEBUG_WATCH) console.log(`Event: ${filename}`);
     clearTimeout(timer);
     timer = setTimeout(() => {
+      const signature = sourceSignature();
+      if (signature === lastSignature) return;
+      lastSignature = signature;
       try {
         build();
       } catch (err) {

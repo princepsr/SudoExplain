@@ -136,7 +136,7 @@ A JWT is **signed, not encrypted**. Its chunks are written in Base64, which is o
 String payload = token.split("\\.")[1];
 byte[] bytes = Base64.getUrlDecoder().decode(payload);
 System.out.println(new String(bytes, StandardCharsets.UTF_8));
-// {"sub":"42","role":"admin","exp":1793493600}
+// prints: {"sub":"42","role":"admin",...}
 ```
 
 The seal stops people *changing* the facts. It does not stop people *reading* them.
@@ -171,7 +171,7 @@ So you run several copies of the app and put a **load balancer** in front of the
 Now combine the two ideas. Our session code kept its table in **one server's memory**. Watch what happens with two servers:
 
 <figure>
-<div class="diagram">
+<div class="diagram diagram-wide">
 <svg viewBox="0 0 680 300" role="img" aria-label="Diagram: a login creates a session on Server A. The next request is sent by the load balancer to Server B, which has no record of the session and asks the user to log in again.">
   <defs><marker id="arr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
   <g font-family="var(--sans)" font-size="14" fill="currentColor" stroke="currentColor" stroke-width="2">
@@ -194,6 +194,34 @@ Now combine the two ideas. Our session code kept its table in **one server's mem
     <g stroke="none">
       <text x="352" y="96">1. login</text>
       <text x="345" y="236" fill="var(--accent)">2. next request</text>
+    </g>
+  </g>
+</svg>
+</div>
+<div class="diagram diagram-tall">
+<svg viewBox="0 0 340 400" role="img" aria-label="Diagram: a login creates a session on Server A. The next request is sent by the load balancer to Server B, which has no record of the session and asks the user to log in again.">
+  <defs><marker id="arr1t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+  <g font-family="var(--sans)" font-size="14" fill="currentColor" stroke="currentColor" stroke-width="2">
+    <rect x="100" y="10" width="140" height="44" rx="8" fill="none"/>
+    <rect x="100" y="110" width="140" height="44" rx="8" fill="none"/>
+    <rect x="10" y="250" width="150" height="84" rx="8" fill="none"/>
+    <rect x="180" y="250" width="150" height="84" rx="8" fill="none"/>
+    <line x1="170" y1="54" x2="170" y2="106" marker-end="url(#arr1t)"/>
+    <line x1="140" y1="154" x2="88" y2="246" marker-end="url(#arr1t)"/>
+    <line x1="200" y1="154" x2="252" y2="246" stroke="var(--accent)" stroke-dasharray="6 5" marker-end="url(#arr1t)"/>
+    <g stroke="none" text-anchor="middle">
+      <text x="170" y="37">Browser</text>
+      <text x="170" y="137">Load balancer</text>
+      <text x="85" y="285">Server A</text>
+      <text x="85" y="311" font-size="13">memory: { S1 }</text>
+      <text x="255" y="285">Server B</text>
+      <text x="255" y="311" font-size="13">memory: { }</text>
+      <text x="255" y="360" font-size="13" fill="var(--accent)">"Who are you?</text>
+      <text x="255" y="378" font-size="13" fill="var(--accent)">Please log in."</text>
+    </g>
+    <g stroke="none" font-size="13">
+      <text x="20" y="206">1. login</text>
+      <text x="240" y="206" fill="var(--accent)">2. next request</text>
     </g>
   </g>
 </svg>
@@ -262,7 +290,7 @@ Sticky sessions are a bandage. They are fine for a small setup, and not much mor
 The robust fix: **take the table out of the server.** Keep sessions in one shared place that every server can read. A database works. So does a fast in-memory store like Redis, which is software built to hold small pieces of data in memory and share them over a network. Distributed caches such as Infinispan or Hazelcast do the same job. You do not need to know these yet. They are just examples.
 
 <figure>
-<div class="diagram">
+<div class="diagram diagram-wide">
 <svg viewBox="0 0 680 300" role="img" aria-label="Diagram: the load balancer sends requests to either Server A or Server B. Both servers read and write sessions in one shared session store, so either can handle any request.">
   <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
   <g font-family="var(--sans)" font-size="14" fill="currentColor" stroke="currentColor" stroke-width="2">
@@ -286,6 +314,34 @@ The robust fix: **take the table out of the server.** Keep sessions in one share
       <text x="617" y="142">Shared</text>
       <text x="617" y="160">session store</text>
       <text x="617" y="180" font-size="12" fill="var(--accent)">{ S1 }</text>
+    </g>
+  </g>
+</svg>
+</div>
+<div class="diagram diagram-tall">
+<svg viewBox="0 0 340 430" role="img" aria-label="Diagram: the load balancer sends requests to either Server A or Server B. Both servers read and write sessions in one shared session store, so either can handle any request.">
+  <defs><marker id="arr2t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+  <g font-family="var(--sans)" font-size="14" fill="currentColor" stroke="currentColor" stroke-width="2">
+    <rect x="100" y="10" width="140" height="44" rx="8" fill="none"/>
+    <rect x="100" y="100" width="140" height="44" rx="8" fill="none"/>
+    <rect x="10" y="190" width="150" height="64" rx="8" fill="none"/>
+    <rect x="180" y="190" width="150" height="64" rx="8" fill="none"/>
+    <rect x="85" y="330" width="170" height="84" rx="8" fill="none" stroke="var(--accent)"/>
+    <line x1="170" y1="54" x2="170" y2="96" marker-end="url(#arr2t)"/>
+    <line x1="140" y1="144" x2="90" y2="186" marker-end="url(#arr2t)"/>
+    <line x1="200" y1="144" x2="250" y2="186" marker-end="url(#arr2t)"/>
+    <line x1="85" y1="254" x2="130" y2="326" stroke="var(--accent)" marker-end="url(#arr2t)"/>
+    <line x1="255" y1="254" x2="210" y2="326" stroke="var(--accent)" marker-end="url(#arr2t)"/>
+    <g stroke="none" text-anchor="middle">
+      <text x="170" y="37">Browser</text>
+      <text x="170" y="127">Load balancer</text>
+      <text x="85" y="218">Server A</text>
+      <text x="85" y="238" font-size="12">keeps no sessions</text>
+      <text x="255" y="218">Server B</text>
+      <text x="255" y="238" font-size="12">keeps no sessions</text>
+      <text x="170" y="358">Shared</text>
+      <text x="170" y="377">session store</text>
+      <text x="170" y="398" font-size="12" fill="var(--accent)">{ S1 }</text>
     </g>
   </g>
 </svg>

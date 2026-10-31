@@ -236,5 +236,5 @@ Use invented names and numbers (`user 42`, `Server A`, `example.com`) and write 
 | The build stops with an error naming your file | The `title` or `date` is missing, or the date is not `YYYY-MM-DD` |
 | Text runs together | A blank line is missing between paragraphs, lists or code blocks |
 | A table does not appear | The `\|---\|---\|` line under the header row is missing |
-| A diagram is cut off on phones | Wrap it in `<div class="diagram">`, as described in [writing.md](writing.md) |
+| A diagram is tiny or has to be scrolled on phones | Give it an upright version in `<div class="diagram diagram-tall">`, as described in [writing.md](writing.md) |
 | Related posts look wrong | Tags are inconsistent. Use the same spelling as other posts |

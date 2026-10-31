@@ -44,7 +44,7 @@ A missing `title` or an invalid date stops the build with an error that names th
   > Never put secrets in a JWT payload.
   ```
 - Fenced code blocks, with syntax highlighting
-- Raw HTML blocks, which is useful for inline SVG diagrams. A block that starts with `<` is passed through unchanged, and it ends at the first blank line, so keep blank lines out of it. Wrap a wide diagram in `<div class="diagram">…</div>` so it keeps a readable size and scrolls sideways on phones. Use `currentColor` and `var(--accent)` for strokes and text so it follows the light and dark themes
+- Raw HTML blocks, which is useful for inline SVG diagrams. A block that starts with `<` is passed through unchanged, and it ends at the first blank line, so keep blank lines out of it. For phones, give each diagram two versions, a wide one and an upright one, as shown in the captioning example below. Use `currentColor` and `var(--accent)` for strokes and text so it follows the light and dark themes
 
 Not supported: footnotes, task lists, underscore-style italics (`_text_`), and inline HTML mixed into a paragraph.
 
@@ -69,7 +69,7 @@ public final class Greeter { }
 | `yaml` | `yml` |
 | `html` | `xml`, `svg` |
 
-Any other tag, or none, renders as plain text with special characters escaped. Use `text` for output you do not want coloured, and `pseudocode` for language-neutral concept snippets (the tag shows as a small label on the block). The highlighter is a regex tokenizer, so unusual syntax can occasionally be coloured imperfectly.
+On phones, long lines of code wrap instead of scrolling sideways, so keep the important words early in a line and keep lines under about 70 characters. On larger screens nothing wraps. Any other tag, or none, renders as plain text with special characters escaped. Use `text` for output you do not want coloured, and `pseudocode` for language-neutral concept snippets (the tag shows as a small label on the block). The highlighter is a regex tokenizer, so unusual syntax can occasionally be coloured imperfectly.
 
 To add a language, add an entry to `LANGS` and its names to `LANG_ALIASES` in `build.mjs`. Colours live in `assets/style.css` under the `--tok-*` variables.
 
@@ -93,14 +93,17 @@ Always write meaningful alt text. It is used by screen readers and by search eng
 
 Posts with three or more `##` sections get a sticky contents list in the right-hand column on screens 1100px and wider. The article starts at the same left edge as every other page. The entry for the section being read is highlighted as you scroll. On narrower screens and phones the same list appears as a collapsed "On this page" box under the post header.
 
-To caption a diagram, wrap it in a figure (keep blank lines out of the block):
+To add a diagram, wrap it in a figure with a caption (keep blank lines out of the block). Give it two versions so it is readable everywhere: a wide one for screens, and an upright one that the site shows on phones (640px and narrower):
 
 ```html
 <figure>
-<div class="diagram"><svg …>…</svg></div>
+<div class="diagram diagram-wide"><svg viewBox="0 0 680 300" …>…</svg></div>
+<div class="diagram diagram-tall"><svg viewBox="0 0 340 400" …>…</svg></div>
 <figcaption>Figure 1. What the diagram shows.</figcaption>
 </figure>
-``` It is built automatically from your `##` headings, so give them short, clear names. Nothing to configure.
+```
+
+The upright version works best at about 340 units wide, which keeps its text near 14px on a phone. Give the two versions different marker ids if they use arrowheads. A diagram with only `<div class="diagram">` still works, but phone readers have to scroll it sideways, and `node build.mjs --check` will remind you. It is built automatically from your `##` headings, so give them short, clear names. Nothing to configure.
 
 ## Related posts and search
 

@@ -810,7 +810,31 @@ a:hover {
 
 .diagram svg {
   display: block;
+}
+
+/* A diagram with no phone version keeps a readable minimum size and scrolls sideways. */
+.diagram:not(.diagram-wide):not(.diagram-tall) svg {
   min-width: 560px;
+}
+
+/* Diagrams with two versions: a wide one for larger screens and an upright one for phones. */
+.diagram-tall {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .diagram-wide {
+    display: none;
+  }
+
+  .diagram-tall {
+    display: block;
+  }
+
+  .diagram-tall svg {
+    max-width: 360px;
+    margin-inline: auto;
+  }
 }
 
 .prose table {
@@ -981,6 +1005,9 @@ mark {
 
   .prose pre {
     border-radius: 8px;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   .prose h2 .anchor,
