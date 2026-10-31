@@ -24,22 +24,11 @@ The answer is a **stale cache**. It only makes sense after a few basics, so we s
 > 2. Why a cache that works on one server goes wrong on two
 > 3. How to **diagnose** a stale cache with a few requests
 > 4. Three ways to **fix** it, and what each one costs
+> 5. How a fix can fail under real traffic, and how to stop it
 
 ## First, the basics
 
-### Memory and the database
-
-An application keeps its important data, such as products, prices and orders, in a **database**. A database is a program built to store data safely on disk, so that nothing is lost when the power goes off.
-
-Disks are safe but slow. Asking the database for something takes a trip, and the answer comes back after a short wait. Do that thousands of times a second and the waiting adds up.
-
-An application also has **memory** (RAM), which is the fast, short-term space a running program uses to hold things it is working with right now. Reading from memory is far quicker than a trip to the database. The catch is that memory is private to one running program, and it is wiped when the program stops.
-
-### What is a cache?
-
-A **cache** is a saved copy of an answer, kept close by so you can reuse it quickly.
-
-Think of a notebook on your desk. The first time someone asks you a phone number, you walk to the library, look it up and write it in the notebook. The next time, you read it straight from the notebook. That is much faster than walking to the library again.
+A **cache** is a saved copy of an answer, kept close by so you can reuse it without the slow trip to where it came from. Think of a notebook on your desk: you look a phone number up in the library once, write it down, and read it from the notebook after that.
 
 For an app, the library is the database, the notebook is the cache, and the cache usually lives in the server's memory:
 
@@ -56,15 +45,13 @@ function setPrice(productId, newPrice):
     cache[productId] = newPrice            # keep the notebook up to date
 ```
 
-Look at `setPrice`. When the price changes, the code updates the database **and** its own notebook. On a single server this is perfect: the notebook can never disagree with the database, because there is only one notebook and one writer.
+Look at `setPrice`. It updates the database **and** its own notebook. On a single server that is perfect, because there is one notebook and one writer, so the two can never disagree.
 
-### Stale
-
-A cached copy is **stale** when the real data has changed but the copy has not. The notebook still says $20 while the library says $25. A stale answer is not an error. It is an out-of-date answer that looks completely normal, and that is exactly what makes it hard to spot.
+A cached copy is **stale** when the real data has changed but the copy has not. A stale answer is not an error. It looks completely normal, which is what makes it hard to spot.
 
 ## One server has one notebook. Two servers have two.
 
-Real apps rarely run on one server, because one server means limited capacity, no backup if it crashes, and downtime for every release. So you run several copies and put a **load balancer** in front. A load balancer is a traffic cop: it receives every request and hands each one to one of the servers. (If that is new, the [sessions post](/posts/sessions-jwt-and-load-balancers/) explains it from scratch.)
+Real apps rarely run on one server, so you run several copies behind a **load balancer**, which hands each incoming request to one of them. (New to that? The [sessions post](/posts/sessions-jwt-and-load-balancers/) explains it from scratch.)
 
 Here is the catch. Each server is a separate running program, so each one has **its own memory** and therefore **its own notebook**. They do not share it, and they do not know what is in each other's.
 
@@ -267,6 +254,44 @@ There is a close relative of this idea: instead of each server having its own no
 
 **The cost:** more moving parts. Messages can be lost if a server is restarting at the wrong moment, and a shared store is one more thing that must stay running. So real systems usually combine this with a TTL as a safety net: even if an announcement is missed, the copy dies on its own within a minute.
 
+## When the fix itself breaks: the cache stampede
+
+Fix 1 has a hidden problem that only shows up under real traffic. Every copy gets the same timer, so popular items **expire at the same moment**.
+
+Picture the product page everyone is viewing. Its cached copy expires at 12:00:00. In the next second a thousand requests arrive, and every one of them finds the cache empty. Each one asks the database for the same thing at the same time.
+
+The database slows down under the sudden load. Requests start timing out, so nobody manages to refill the cache, and the pile-up grows. This is called a **cache stampede**: a crowd of requests all rushing to rebuild the same missing copy at once. The cache was meant to protect the database, and at that moment it does the opposite.
+
+**How you would notice.** The database is calm, then load spikes sharply at the instant popular items expire, and responses get slow for a while. Charts of database load show regular spikes, spaced one TTL apart.
+
+There are two common fixes, and real systems usually use both.
+
+**1. Let only one request rebuild.** The first request to find the copy missing takes a **lock**, which is a marker that lets only one request through at a time. It reloads the data. The others either wait a moment, or are handed the old copy until the new one is ready.
+
+```pseudocode
+function getPrice(productId):
+    entry = cache[productId]
+    if entry exists and now < entry.expiresAt:
+        return entry.price
+
+    if lock.tryAcquire("price:" + productId):     # only one request wins
+        price = database.readPrice(productId)
+        cache[productId] = { price: price, expiresAt: now + ttl }
+        lock.release("price:" + productId)
+        return price
+
+    return entry.price if entry exists            # others serve the old copy
+    # (or wait briefly, then read the cache again)
+```
+
+**2. Spread out the expiry times.** Instead of exactly 60 seconds, use 60 seconds plus a random few. Copies made at the same moment now die at slightly different moments, so the reloads trickle in instead of arriving as one wave.
+
+```pseudocode
+ttl = 60 seconds + random(0 to 10 seconds)        # "jitter"
+```
+
+The cost of the lock is a little more code, and one more thing that can go wrong, such as a lock never released after a crash, so locks are given their own short expiry. The cost of jitter is nothing at all. That is why the TTL in real systems almost always carries some randomness.
+
 ## Which should you use?
 
 | Situation | Reach for |
@@ -278,6 +303,8 @@ There is a close relative of this idea: instead of each server having its own no
 
 If you are not sure, start with a short TTL. It is the easiest to understand and the easiest to remove. Move to versions or invalidation when "a minute out of date" turns out to matter to real users.
 
+Two more things are worth looking up once this makes sense. Two updates arriving at the same moment can leave a wrong value in the cache for good, which is a **race condition**. And a cache with no size limit slowly fills the server's memory. Both are common in production, and each deserves a post of its own.
+
 ## The takeaway
 
 1. A **cache** is a saved copy that makes things faster. It is only safe while the copy matches the original.
@@ -285,3 +312,4 @@ If you are not sure, start with a short TTL. It is the easiest to understand and
 3. A **stale** answer looks completely normal, which is why the bug feels random instead of broken.
 4. Diagnose it by asking the same question many times and noting **which server** answers. Each server being consistently different is the fingerprint.
 5. Fix it by making copies **expire**, by **checking a version**, or by **telling every server** when data changes. Each trades freshness against speed and complexity.
+6. Fixes have failure modes of their own. When popular copies expire together, a **stampede** hits the database. Let only one request rebuild, and **add random jitter** to expiry times.
