@@ -619,12 +619,13 @@ function tagPage(slug, tag) {
   });
 }
 
-function staticPage(page, path) {
+function staticPage(page, path, jsonLd = null) {
   return layout({
     title: page.title,
     description: page.description,
     path,
     nav: path,
+    jsonLd,
     body: `<div class="narrow">
   <header class="page-head"><h1>${esc(page.title)}</h1></header>
   <div class="prose">
@@ -732,7 +733,17 @@ function build() {
 
   const about = loadPage('about');
   if (about) {
-    emit('/about/', staticPage(about, '/about/'));
+    const profile = {
+      '@context': 'https://schema.org',
+      '@type': 'ProfilePage',
+      mainEntity: {
+        '@type': 'Person',
+        name: cfg.author,
+        url: `${cfg.url}${cfg.basePath}/about/`,
+        sameAs: [cfg.github, cfg.linkedin].filter(Boolean),
+      },
+    };
+    emit('/about/', staticPage(about, '/about/', profile));
     paths.push({ path: '/about/' });
   }
 
