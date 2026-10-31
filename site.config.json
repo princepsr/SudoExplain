@@ -1,0 +1,12 @@
+{
+  "title": "sudo explain",
+  "eyebrow": "$ sudo explain --topic anything",
+  "tagline": "Tech concepts, explained until the doubt is gone.",
+  "description": "An engineer's notebook on core concepts, system design, AI and the problems I hit along the way, written to clear the doubts that tripped me up.",
+  "author": "Prince Singh",
+  "lang": "en",
+  "url": "https://princepsr.github.io",
+  "basePath": "/SudoExplain",
+  "github": "",
+  "linkedin": ""
+}

@@ -1,0 +1,11 @@
+{
+  "name": "blog",
+  "private": true,
+  "type": "module",
+  "description": "Hand-built static blog. Zero dependencies.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --serve"
+  }
+}
