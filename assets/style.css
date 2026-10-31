@@ -586,6 +586,11 @@ a:hover {
   margin-top: 1.05rem;
 }
 
+/* No trailing space after the last block, so anything beside the text can line up with its last line. */
+.prose > :last-child {
+  margin-bottom: 0;
+}
+
 .prose h2,
 .prose h3,
 .prose h4 {
@@ -1080,11 +1085,22 @@ mark {
     align-items: start;
   }
 
+  /* The card runs from the top of the heading to the bottom of the text. */
   .terminal-wrap {
-    position: sticky;
-    top: 5.5rem;
+    display: flex;
+    align-self: stretch;
     margin-top: 3.5rem;
     max-width: none;
+  }
+
+  .terminal {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .terminal-body {
+    flex: 1;
   }
 }
 
