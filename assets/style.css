@@ -245,7 +245,7 @@ a:hover {
 
 /* ---------- Hero ---------- */
 .hero {
-  padding-block: clamp(2rem, 5vw, 3.5rem) 1rem;
+  padding-block: 1.35rem 1rem;
 }
 
 .eyebrow {
