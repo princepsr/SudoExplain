@@ -53,30 +53,26 @@ A session is a **record the server keeps about you**. After you log in, the serv
 
 The cookie holds only the ticket number. Think of a coat check: you hand over your coat and get a numbered ticket. The ticket is meaningless on its own. The coat stays in the cloakroom. On every later request the server takes the ticket, looks up the record, and knows who you are.
 
-Here is the idea as simplified code:
+Here is the idea in pseudocode:
 
-```javascript
-// A table kept in THIS server's memory
-const sessions = new Map();
+```pseudocode
+sessions = an empty table, kept in THIS server's memory
 
-app.post('/login', (req, res) => {
-  const id = crypto.randomUUID();       // random ticket number
-  sessions.set(id, { userId: 42 });     // the record
-  res.setHeader('Set-Cookie', `sid=${id}; HttpOnly; Secure`);
-  res.end('ok');
-});
+on POST /login:
+    id = a random ticket number
+    sessions[id] = { userId: 42 }
+    send the browser a cookie:  sid = id
 
-app.get('/orders', (req, res) => {
-  const session = sessions.get(readCookie(req, 'sid'));
-
-  // Unknown ticket: who are you?
-  if (!session) return res.redirect('/login');
-
-  res.end(`orders for user ${session.userId}`);
-});
+on GET /orders:
+    session = sessions[ the sid cookie ]
+    if there is no such session:
+        redirect to /login          # unknown ticket: who are you?
+    show the orders of session.userId
 ```
 
-Notice where the record lives: in a `Map` inside that one server's memory. Keep that in mind, because it is the root of the whole problem.
+Notice where the record lives: in a table inside that one server's memory. Keep that in mind, because it is the root of the whole problem.
+
+You may already have used this without noticing. In a Java web app, the servlet container (Tomcat, for example) does exactly this for you: calling `request.getSession()` creates the record and sends a cookie called `JSESSIONID`. By default, the table lives in that one server's memory.
 
 A session has a great property: **the server is in control**. To log someone out, delete their record. To change their permissions, edit it. The next request sees the change.
 
@@ -103,26 +99,26 @@ A JWT is three chunks of text joined by dots: `header.payload.signature`.
 
 When the token comes back, the server recomputes the seal. If it matches, the facts are trusted. If someone edited even one letter, the seal no longer matches and the token is rejected.
 
-```javascript
-// At login (done once)
-const facts = { sub: '42', role: 'admin', exp: inOneHour() };
-const token = sign(facts, privateKey);
+```pseudocode
+# At login (once)
+facts = { sub: 42, role: "admin", expires: one hour from now }
+token = sign(facts, privateKey)
 
-// On every request: throws if tampered with or expired
-const claims = verify(token, publicKey);
+# On every request: fails if tampered with or expired
+facts = verify(token, publicKey)
 ```
 
 There is no lookup and no table. Just a calculation.
 
 ### One thing that surprises people
 
-A JWT is **signed, not encrypted**. Anyone holding it can read it:
+A JWT is **signed, not encrypted**. Anyone holding it can read it. In Java, three lines are enough to open one up, no key needed:
 
-```javascript
-const [header, payload] = token.split('.');
-const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
-console.log(claims);
-// { sub: "42", role: "admin", exp: 1793493600 }
+```java
+String payload = token.split("\\.")[1];
+byte[] bytes = Base64.getUrlDecoder().decode(payload);
+System.out.println(new String(bytes, StandardCharsets.UTF_8));
+// {"sub":"42","role":"admin","exp":1793493600}
 ```
 
 The seal stops people *changing* the facts. It does not stop people *reading* them. Never put passwords or sensitive data in the payload.
@@ -270,17 +266,16 @@ The robust fix: **take the table out of the server.** Keep sessions in one share
 </svg>
 </div>
 
-In code, the change is tiny. The only thing that moves is where the table lives:
+The change is tiny. The only thing that moves is where the table lives:
 
-```javascript
-// Was: new Map(). Now every server uses the same store
-const sessions = sharedStore;
+```pseudocode
+sessions = the shared store      # was: a table in this server's memory
 
-// At login, on any server
-await sessions.set(id, { userId: 42 }, { ttlSeconds: 1800 });
+on login (any server):
+    sessions.save(id, { userId: 42 }, expires in 30 minutes)
 
-// On a later request, on any server
-const session = await sessions.get(id);
+on a later request (any server):
+    session = sessions.load(id)
 ```
 
 Now Server A creates the session, Server B finds it, and everything works. Any server can answer any request, so the servers are **interchangeable**. You can add, remove or restart them freely.
@@ -302,15 +297,12 @@ Now there is a new trap. Server A updates some data. Server B still holds an old
 
 A common fix is a **version number**: a counter stored in the database that goes up every time the data changes. Before trusting a cached copy, a server compares versions:
 
-```javascript
-// Cheap: one small number
-const current = await db.getVersion('projects');
+```pseudocode
+current = database.versionOf("projects")      # cheap: one small number
 
-// Someone changed it elsewhere: reload the fresh copy
-if (cache.version !== current) {
-  cache.data = await db.loadProjects();
-  cache.version = current;
-}
+if cache.version != current:                  # someone changed it elsewhere
+    cache.data    = database.loadProjects()   # reload the fresh copy
+    cache.version = current
 ```
 
 Checking one number is cheap. Reloading everything on every request is not. The version number tells you when you must.
@@ -368,17 +360,3 @@ If you are not sure, start with sessions in a shared store. Move to tokens when 
 3. A session kept in **one server's memory** breaks the moment a load balancer sends you to a different server.
 4. Fix it by **moving the state out of the servers** (a shared store) or **out of the server side entirely** (a JWT), not by pinning users to machines.
 5. "Stateless" does not mean the state disappeared. It means you chose where to keep it, and the moment you need to revoke something, it comes back.
-
-## Quick glossary
-
-| Word | Plain meaning |
-|---|---|
-| Cookie | A small text value the browser stores and sends back automatically |
-| Session | A record the server keeps about a logged-in user, found by an ID in a cookie |
-| JWT | A signed token that carries the facts about a user, so the server keeps nothing |
-| Stateful | Something must remember things between requests |
-| Stateless | Each request carries everything needed, nothing is remembered |
-| Load balancer | A traffic cop that spreads requests across several servers |
-| Sticky session | The load balancer always sends the same user to the same server |
-| Shared session store | One place, outside the servers, where every server reads and writes sessions |
-| Revocation | Cancelling a login before it would naturally expire |
