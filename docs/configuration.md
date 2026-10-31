@@ -24,7 +24,7 @@ All site-wide settings live in `site.config.json`. The build reads it every time
 
 Everything you read (post titles, body text, headings, navigation) uses one system sans-serif family: Segoe UI on Windows, San Francisco on Mac, Roboto on Android. Monospace is used only for code and the small command line above the home page headline. No fonts are downloaded, so text appears instantly and looks native on every device.
 
-Body text is 18px with a 1.65 line height and about 75 characters per line, and the text colour is slightly softened in dark mode to reduce glare.
+Body text is 19px with a 1.65 line height and about 80 characters per line, and the text colour is slightly softened in dark mode to reduce glare.
 
 To try a serif look instead, open `assets/style.css` and set both of these at the top to `var(--serif)`:
 
@@ -33,7 +33,7 @@ To try a serif look instead, open `assets/style.css` and set both of these at th
 --font-display: var(--sans);
 ```
 
-Every page shares one container (`--wide`), so headings, lists and articles all start at the same left edge as the logo. Article text is capped at `--read-width` (44rem), which gives about 85 characters per line. If you change the font size or `--read-width`, keep lines under roughly 90 characters, because longer lines are harder to follow.
+Every page shares one container (`--wide`), so headings, lists and articles all start at the same left edge as the logo. Article text is capped at `--read-width` (44rem), which gives about 80 characters per line at 19px. If you change the font size or `--read-width`, keep lines under roughly 90 characters, because longer lines are harder to follow.
 
 ## SEO that is built in
 

@@ -210,6 +210,8 @@ function highlight(code, lang) {
   return out + esc(code.slice(last));
 }
 
+const CALLOUT_LABELS = { note: 'Note', tip: 'Tip', warning: 'Warning', summary: 'In this post' };
+
 const FENCE = /^```\s*([\w+-]*)\s*$/;
 const HEADING = /^(#{1,6})\s+(.*?)\s*#*\s*$/;
 const RULE = /^(-{3,}|\*{3,}|_{3,})\s*$/;
@@ -308,7 +310,13 @@ function markdown(src) {
     } else if (line.startsWith('>')) {
       const buf = [];
       while (i < lines.length && lines[i].startsWith('>')) buf.push(lines[i++].replace(/^>\s?/, ''));
-      out.push(`<blockquote>${markdown(buf.join('\n'))}</blockquote>`);
+      const alert = buf[0].match(/^\[!(NOTE|TIP|WARNING|SUMMARY)\]\s*$/i);
+      if (alert) {
+        const kind = alert[1].toLowerCase();
+        out.push(`<aside class="callout callout-${kind}"><p class="callout-title">${CALLOUT_LABELS[kind]}</p>${markdown(buf.slice(1).join('\n'))}</aside>`);
+      } else {
+        out.push(`<blockquote>${markdown(buf.join('\n'))}</blockquote>`);
+      }
     } else if (isTableStart(lines, i)) {
       const [html, next] = table(lines, i);
       out.push(html);
@@ -546,18 +554,26 @@ function archivePage(posts) {
 }
 
 // "On this page" list built from the h2 headings; only for posts with at least three sections.
+// `aside` is the sticky side list for wide screens, `inline` is the collapsible box for narrow ones.
 function tableOfContents(html) {
   const items = [...html.matchAll(/<h2 id="([^"]+)">(?:<a class="anchor"[^>]*>#<\/a>)?(.*?)<\/h2>/g)].map(([, id, inner]) => ({
     id,
     text: inner.replace(/<[^>]+>/g, ''),
   }));
-  if (items.length < 3) return '';
+  if (items.length < 3) return { aside: '', inline: '' };
   const links = items.map((i) => `<li><a href="#${i.id}">${i.text}</a></li>`).join('');
-  return `<aside class="toc" aria-label="On this page"><div class="toc-inner"><p class="toc-title">On this page</p><ul>${links}</ul></div></aside>`;
+  return {
+    aside: `<aside class="toc" aria-label="On this page"><div class="toc-inner"><p class="toc-title">On this page</p><ul>${links}</ul></div></aside>`,
+    inline: `<details class="toc-mobile"><summary>On this page</summary><ul>${links}</ul></details>`,
+  };
 }
 
 function postPage(post, newer, older) {
-  const toc = tableOfContents(post.html);
+  const { aside, inline: tocInline } = tableOfContents(post.html);
+  const updatedNote =
+    isoDay(post.updated) === isoDay(post.date)
+      ? ''
+      : ` &middot; Updated <time datetime="${isoDay(post.updated)}">${fmtDate(post.updated)}</time>`;
   const pager = `<nav class="pager" aria-label="More posts">
   ${older ? `<a class="prev" href="${withBase(`/posts/${older.slug}/`)}"><small>&larr; Older</small>${esc(older.title)}</a>` : '<span></span>'}
   ${newer ? `<a class="next" href="${withBase(`/posts/${newer.slug}/`)}"><small>Newer &rarr;</small>${esc(newer.title)}</a>` : ''}
@@ -588,17 +604,18 @@ function postPage(post, newer, older) {
     body: `<div class="post-layout">
 <article class="post">
   <header class="post-head">
-    <p class="meta"><time datetime="${isoDay(post.date)}">${fmtDate(post.date)}</time> &middot; ${post.minutes} min read${post.draft ? ' &middot; <span class="draft">Draft</span>' : ''}</p>
+    <p class="meta"><time datetime="${isoDay(post.date)}">${fmtDate(post.date)}</time>${updatedNote} &middot; ${post.minutes} min read${post.draft ? ' &middot; <span class="draft">Draft</span>' : ''}</p>
     <h1>${esc(post.title)}</h1>
     ${post.description ? `<p class="lede">${esc(post.description)}</p>` : ''}
     ${tagList(post.tags)}
   </header>
+  ${tocInline}
   <div class="prose">
 ${post.html}
   </div>
   ${pager}
 </article>
-${toc}
+${aside}
 </div>`,
   });
 }

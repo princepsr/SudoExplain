@@ -14,12 +14,13 @@ Here is the question that started this post:
 
 I hit this while trying to understand an application that keeps a lot of per-user state (what the user has loaded, how long since they last did anything) and still runs spread across several servers. It looks like a contradiction. It isn't, but the answer only makes sense after the basics, so we start there. I won't assume you know any of these words.
 
-By the end you will know:
-
-1. What a session is, and what a JWT is
-2. What a load balancer does, and why it breaks naive sessions
-3. How to **diagnose** the problem when it happens to you
-4. The ways to **fix** it, and how a JWT fits in
+> [!SUMMARY]
+> By the end you will know:
+>
+> 1. What a session is, and what a JWT is
+> 2. What a load balancer does, and why it breaks naive sessions
+> 3. How to **diagnose** the problem when it happens to you
+> 4. The ways to **fix** it, and how a JWT fits in
 
 ## First, the problem HTTP leaves us with
 
@@ -121,7 +122,10 @@ System.out.println(new String(bytes, StandardCharsets.UTF_8));
 // {"sub":"42","role":"admin","exp":1793493600}
 ```
 
-The seal stops people *changing* the facts. It does not stop people *reading* them. Never put passwords or sensitive data in the payload.
+The seal stops people *changing* the facts. It does not stop people *reading* them.
+
+> [!WARNING]
+> Never put passwords or sensitive data in a JWT payload. Anyone who gets the token can read it.
 
 ## Stateful and stateless, in plain words
 
@@ -149,6 +153,7 @@ So you run several copies of the app and put a **load balancer** in front of the
 
 Now combine the two ideas. Our session code kept its table in **one server's memory**. Watch what happens with two servers:
 
+<figure>
 <div class="diagram">
 <svg viewBox="0 0 680 300" role="img" aria-label="Diagram: a login creates a session on Server A. The next request is sent by the load balancer to Server B, which has no record of the session and asks the user to log in again.">
   <defs><marker id="arr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
@@ -176,6 +181,8 @@ Now combine the two ideas. Our session code kept its table in **one server's mem
   </g>
 </svg>
 </div>
+<figcaption>Figure 1. The login lands on Server A, but the next request lands on Server B, which has never heard of it.</figcaption>
+</figure>
 
 1. You log in. The load balancer sends the request to **Server A**. Server A creates session `S1` in its own memory and gives your browser the cookie `sid=S1`.
 2. You click a link. The load balancer sends this request to **Server B**, which is just as likely. Server B receives `sid=S1`, looks in its own memory, finds nothing, and says: *"Who are you? Please log in."*
@@ -237,6 +244,7 @@ Sticky sessions are a bandage. They are fine for a small setup, and not much mor
 
 The robust fix: **take the table out of the server.** Keep sessions in one shared place that every server can read, such as a database, a fast in-memory store like Redis, or a distributed cache such as Infinispan or Hazelcast.
 
+<figure>
 <div class="diagram">
 <svg viewBox="0 0 680 300" role="img" aria-label="Diagram: the load balancer sends requests to either Server A or Server B. Both servers read and write sessions in one shared session store, so either can handle any request.">
   <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
@@ -265,6 +273,8 @@ The robust fix: **take the table out of the server.** Keep sessions in one share
   </g>
 </svg>
 </div>
+<figcaption>Figure 2. With a shared session store, either server can answer any request.</figcaption>
+</figure>
 
 The change is tiny. The only thing that moves is where the table lives:
 

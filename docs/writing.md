@@ -22,7 +22,7 @@ tags: authentication, web, system-design
 | `description` | No | Shown in lists and search results. Aim for under 160 characters. If omitted, the first paragraph is used |
 | `tags` | No | Comma-separated. Each tag gets its own topic page |
 | `draft` | No | `true` hides the post from the published site. Drafts are visible in `--serve` and `--drafts` builds |
-| `updated` | No | `YYYY-MM-DD`. Set it when you revise a post, so search engines see the new date |
+| `updated` | No | `YYYY-MM-DD`. Set it when you revise a post. Readers see "Updated …" next to the date, and search engines see the new date |
 | `slug` | No | Overrides the filename in the URL |
 
 A missing `title` or an invalid date stops the build with an error that names the file.
@@ -34,6 +34,12 @@ A missing `title` or an invalid date stops the build with an error that names th
 - Bulleted and numbered lists, including nested lists
 - Tables, with column alignment (`:---`, `:---:`, `---:`)
 - Blockquotes and horizontal rules
+- Callout boxes: a blockquote whose first line is `[!NOTE]`, `[!TIP]`, `[!WARNING]` or `[!SUMMARY]`. `SUMMARY` is titled "In this post" and works well at the top of a long post. Example:
+
+  ```markdown
+  > [!WARNING]
+  > Never put secrets in a JWT payload.
+  ```
 - Fenced code blocks, with syntax highlighting
 - Raw HTML blocks, which is useful for inline SVG diagrams. A block that starts with `<` is passed through unchanged, and it ends at the first blank line, so keep blank lines out of it. Wrap a wide diagram in `<div class="diagram">…</div>` so it keeps a readable size and scrolls sideways on phones. Use `currentColor` and `var(--accent)` for strokes and text so it follows the light and dark themes
 
@@ -82,7 +88,16 @@ Always write meaningful alt text. It is used by screen readers and by search eng
 
 ## "On this page" contents list
 
-Posts with three or more `##` sections get a sticky contents list in the right-hand column on screens 1100px and wider. The article starts at the same left edge as every other page. It is built automatically from your `##` headings, so give them short, clear names. Nothing to configure.
+Posts with three or more `##` sections get a sticky contents list in the right-hand column on screens 1100px and wider. The article starts at the same left edge as every other page. The entry for the section being read is highlighted as you scroll. On narrower screens and phones the same list appears as a collapsed "On this page" box under the post header.
+
+To caption a diagram, wrap it in a figure (keep blank lines out of the block):
+
+```html
+<figure>
+<div class="diagram"><svg …>…</svg></div>
+<figcaption>Figure 1. What the diagram shows.</figcaption>
+</figure>
+``` It is built automatically from your `##` headings, so give them short, clear names. Nothing to configure.
 
 ## Other pages
 
