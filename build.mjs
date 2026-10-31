@@ -850,18 +850,58 @@ function tagPage(slug, tag) {
   });
 }
 
-function staticPage(page, path, jsonLd = null) {
+// A decorative terminal for the About page. Every value comes from the site's own content, so it stays accurate
+// as posts and topics are added. Time: O(t log t) in the number of topics.
+function aboutTerminal(posts, tagMap) {
+  const published = posts.filter((p) => !p.draft);
+  const topics = [...tagMap.entries()].sort((a, b) => b[1].posts.length - a[1].posts.length || a[1].name.localeCompare(b[1].name));
+  const shown = topics.slice(0, 8);
+  const topicLinks = shown.map(([slug]) => `<a href="${withBase(`/tags/${slug}/`)}">${esc(slug)}/</a>`).join('');
+  const more = topics.length > shown.length ? `<span>+${topics.length - shown.length} more</span>` : '';
+  const latest = published[0];
+
+  const lines = [
+    ['whoami', esc(slugify(cfg.author))],
+    ['ls topics/', topics.length ? `<span class="t-links">${topicLinks}${more}</span>` : '(none yet)'],
+    ['ls posts/ | wc -l', String(published.length)],
+  ];
+  if (latest) {
+    lines.push(['tail -n 1 posts.log', `${isoDay(latest.date)} <a href="${withBase(`/posts/${latest.slug}/`)}">${esc(latest.title)}</a>`]);
+  }
+  lines.push(['sudo explain --topic anything', '<span class="t-ok">Permission granted. Doubt cleared.</span>']);
+
+  const rows = lines
+    .map(([cmd, out], i) => `<div class="t-line" style="--i:${i}"><p class="t-cmd">${esc(cmd)}</p><p class="t-out">${out}</p></div>`)
+    .join('');
+  const prompt = `<div class="t-line" style="--i:${lines.length}"><p class="t-cmd"><span class="t-cursor" aria-hidden="true"></span></p></div>`;
+  return `<aside class="terminal-wrap" aria-label="This site, as a terminal session">
+    <div class="terminal">
+      <div class="terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="terminal-body">${rows}${prompt}</div>
+    </div>
+  </aside>`;
+}
+
+function staticPage(page, path, jsonLd = null, aside = '') {
+  const content = `<header class="page-head"><h1>${esc(page.title)}</h1></header>
+  <div class="prose">
+${page.html}
+  </div>`;
   return layout({
     title: page.title,
     description: page.description,
     path,
     nav: path,
     jsonLd,
-    body: `<div class="wrap">
-  <header class="page-head"><h1>${esc(page.title)}</h1></header>
-  <div class="prose">
-${page.html}
+    body: aside
+      ? `<div class="wrap page-with-aside">
+  <div class="page-main">
+  ${content}
   </div>
+  ${aside}
+</div>`
+      : `<div class="wrap">
+  ${content}
 </div>`,
   });
 }
@@ -998,7 +1038,7 @@ function build() {
         sameAs: [cfg.github, cfg.linkedin].filter(Boolean),
       },
     };
-    emit('/about/', staticPage(about, '/about/', profile));
+    emit('/about/', staticPage(about, '/about/', profile, aboutTerminal(posts, tagMap)));
     paths.push({ path: '/about/' });
   }
 
