@@ -24,7 +24,7 @@ All site-wide settings live in `site.config.json`. The build reads it every time
 
 Everything you read (post titles, body text, headings, navigation) uses one system sans-serif family: Segoe UI on Windows, San Francisco on Mac, Roboto on Android. Monospace is used only for code and the small command line above the home page headline. No fonts are downloaded, so text appears instantly and looks native on every device.
 
-Body text is 19px with a 1.65 line height and about 80 characters per line, and the text colour is slightly softened in dark mode to reduce glare.
+Body text is 18px with a 1.65 line height and about 80 characters per line. The text colour is softened in both themes to reduce glare: dark brown-grey on cream in light mode (about 11:1 contrast) and warm off-white in dark mode (about 13:1). Both are far above the 4.5:1 accessibility minimum.
 
 To try a serif look instead, open `assets/style.css` and set both of these at the top to `var(--serif)`:
 
@@ -33,7 +33,7 @@ To try a serif look instead, open `assets/style.css` and set both of these at th
 --font-display: var(--sans);
 ```
 
-Every page shares one container (`--wide`), so headings, lists and articles all start at the same left edge as the logo. Article text is capped at `--read-width` (44rem), which gives about 80 characters per line at 19px. If you change the font size or `--read-width`, keep lines under roughly 90 characters, because longer lines are harder to follow.
+Every page shares one container (`--wide`), so headings, lists and articles all start at the same left edge as the logo. Article text is capped at `--read-width` (42rem), which gives about 80 characters per line at 18px. If you change the font size or `--read-width`, keep lines under roughly 90 characters, because longer lines are harder to follow.
 
 On large monitors the whole design scales up together: from 1600px wide the base font size is 112.5%, and from 2200px it is 125%. Because everything is sized in `rem`, the container, the text and the reading column all grow in step, so a line still holds about 80 characters and the empty margins shrink. Laptops below 1600px wide (most 14" and 15" screens) are not affected. To change or remove this, edit the two `@media (min-width: ...)` rules next to the `html` rule in `assets/style.css`.
 

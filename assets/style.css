@@ -2,7 +2,7 @@
 :root {
   --bg: #fbfaf6;
   --surface: #f3f0e8;
-  --text: #1f1d1a;
+  --text: #3a3733;
   --muted: #6b665d;
   --line: #e4dfd3;
   --accent: #c2410c;
@@ -22,7 +22,7 @@
   --font-read: var(--sans);
   --font-display: var(--sans);
   --wide: 64rem;
-  --read-width: 44rem;
+  --read-width: 42rem;
   color-scheme: light;
 }
 
@@ -577,7 +577,7 @@ a:hover {
 .prose {
   max-width: var(--read-width);
   font-family: var(--font-read);
-  font-size: 1.1875rem;
+  font-size: 1.125rem;
   line-height: 1.65;
   overflow-wrap: break-word;
 }
