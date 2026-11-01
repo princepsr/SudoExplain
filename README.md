@@ -52,6 +52,7 @@ New to this? Follow [How to write a post](docs/writing-guide.md). It starts from
 | `assets/terminal.js` | Fits the About-page terminal to the window height |
 | `static/` | Copied as-is to the site root (favicon, social card, post images) |
 | `site.config.json` | Site name, tagline, links, URL |
+| `icons.mjs` | Makes the PNG and ICO icons from `static/favicon.svg` (run only if the SVG changes) |
 | `new-post.mjs` | Creates a draft post from `docs/post-template.md` |
 | `build.mjs` | The generator: Markdown, templates, highlighting, RSS, sitemap, dev server |
 | `.github/workflows/deploy.yml` | Builds and deploys to GitHub Pages |

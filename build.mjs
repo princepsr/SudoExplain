@@ -445,6 +445,7 @@ function writingSuggestions(meta, body) {
   const headings = (body.match(/^## /gm) || []).length;
   if (proseWords > 800 && headings < 3) out.push('long post with fewer than 3 "##" sections; add headings so readers can scan it');
   if (proseWords > 1200 && !/\[!SUMMARY\]/i.test(body)) out.push('long post without a [!SUMMARY] box at the top');
+  if (proseWords > 600 && !/\]\((?:\/[^)\s]*)?\/posts\/[a-z0-9-]+\/?\)/.test(body)) out.push('links to no other post; link to two or three related posts, and add a link to this one from older posts');
   if (proseWords / 220 > 20) out.push(`about ${Math.round(proseWords / 220)} minutes of reading; consider splitting into a series`);
   if (/^## .+\n\s*\n##? /m.test(body)) out.push('a "##" heading is followed straight by another heading, so a section is empty');
   if (/!\[\]\(/.test(body)) out.push('an image has no alt text; describe it between the [ ] brackets');
@@ -611,7 +612,10 @@ function layout({
 <title>${esc(pageTitle)}</title>
 <meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${esc(canonical)}">
+<link rel="icon" href="${withBase('/favicon.ico')}" sizes="48x48">
 <link rel="icon" href="${withBase('/favicon.svg')}" type="image/svg+xml">
+<link rel="icon" href="${withBase('/icon-192.png')}" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="${withBase('/apple-touch-icon.png')}">
 <link rel="alternate" type="application/rss+xml" title="${esc(cfg.title)}" href="${withBase('/rss.xml')}">
 <meta name="author" content="${esc(cfg.author)}">
 <meta name="robots" content="${noindex ? 'noindex, follow' : 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1'}">
@@ -683,6 +687,7 @@ function homePage(posts) {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       name: cfg.title,
+      alternateName: cfg.title.replace(/\s+/g, ''),
       url: `${cfg.url}${cfg.basePath}/`,
       description: cfg.description,
       inLanguage: cfg.lang,
@@ -882,15 +887,46 @@ function tagsIndexPage(tagMap) {
   });
 }
 
+// A topic page is a hub that search engines may index only when it has real writing of its own and at least two
+// published posts. Anything thinner stays noindex, because a bare list of one or two links adds nothing.
+const MIN_HUB_POSTS = 2;
+
+function loadTopic(slug) {
+  const file = join(ROOT, 'content', 'topics', `${slug}.md`);
+  if (!existsSync(file)) return null;
+  const { meta, body } = parseFrontMatter(readFileSync(file, 'utf8'));
+  return { title: meta.title || '', description: meta.description || '', html: markdown(body) };
+}
+
+const isHub = (slug, tag) => !!loadTopic(slug) && tag.posts.filter((p) => !p.draft).length >= MIN_HUB_POSTS;
+
 function tagPage(slug, tag) {
+  const topic = loadTopic(slug);
+  const hub = isHub(slug, tag);
+  const site = `${cfg.url}${cfg.basePath}`;
+  const url = `${site}/tags/${slug}/`;
+  const count = `${tag.posts.length} post${tag.posts.length === 1 ? '' : 's'}`;
+  const heading = topic?.title || tag.name;
   return layout({
-    title: `Topic: ${tag.name}`,
-    description: `Posts about ${tag.name}.`,
+    title: topic?.title || `Topic: ${tag.name}`,
+    description: topic?.description || `Posts about ${tag.name}.`,
     path: `/tags/${slug}/`,
-    noindex: true,
+    noindex: !hub,
     nav: '/tags/',
+    jsonLd: hub
+      ? [
+          { '@context': 'https://schema.org', '@type': 'CollectionPage', name: heading, description: topic.description, url,
+            isPartOf: { '@type': 'WebSite', name: cfg.title, url: `${site}/` },
+            hasPart: tag.posts.filter((p) => !p.draft).map((p) => ({ '@type': 'BlogPosting', headline: p.title, url: `${site}/posts/${p.slug}/` })) },
+          { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+            { '@type': 'ListItem', position: 1, name: cfg.title, item: `${site}/` },
+            { '@type': 'ListItem', position: 2, name: 'Topics', item: `${site}/tags/` },
+            { '@type': 'ListItem', position: 3, name: tag.name, item: url } ] },
+        ]
+      : null,
     body: `<div class="wrap">
-  <header class="page-head"><h1>${esc(tag.name)}</h1><p>${tag.posts.length} post${tag.posts.length === 1 ? '' : 's'}. <a href="${withBase('/tags/')}">All topics</a></p></header>
+  <header class="page-head"><h1>${esc(heading)}</h1><p>${count}. <a href="${withBase('/tags/')}">All topics</a></p></header>
+  ${topic ? `<div class="prose topic-intro">\n${topic.html}\n  </div>\n  <h2 class="topic-posts">Posts on ${esc(tag.name)}</h2>` : ''}
   ${postItems(tag.posts)}
 </div>`,
   });
@@ -1113,6 +1149,7 @@ function build() {
   });
   for (const [slug, tag] of tagMap) {
     emit(`/tags/${slug}/`, tagPage(slug, tag));
+    if (isHub(slug, tag)) paths.push({ path: `/tags/${slug}/`, date: tag.posts.find((p) => !p.draft)?.updated });
   }
 
   const about = loadPage('about');

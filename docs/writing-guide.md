@@ -237,6 +237,7 @@ Use invented names and numbers (`user 42`, `Server A`, `example.com`) and write 
 - [ ] `node build.mjs --check` shows `ok`
 - [ ] `draft: true` has been removed
 - [ ] `node og-images.mjs` has been run, so the post has its own share card
+- [ ] The post links to two or three related posts, and one or two older posts now link to it
 
 ## Troubleshooting
 

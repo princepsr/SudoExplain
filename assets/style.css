@@ -388,6 +388,12 @@ a:hover {
   color: var(--muted);
 }
 
+.topic-posts {
+  margin: 2.5rem 0 0;
+  font: 700 1.1rem var(--sans);
+  color: var(--accent);
+}
+
 .year {
   margin: 2.5rem 0 0;
   font: 700 1.1rem var(--sans);

@@ -314,7 +314,7 @@ Sticky sessions are a bandage. They are fine for a small setup, and not much mor
 
 ## Fix 2: a shared session store
 
-The robust fix: **take the table out of the server.** Keep sessions in one shared place that every server can read. A database works. So does a fast in-memory store like Redis, which is software built to hold small pieces of data in memory and share them over a network. Distributed caches such as Infinispan or Hazelcast do the same job. You do not need to know these yet. They are just examples.
+The robust fix: **take the table out of the server.** Keep sessions in one shared place that every server can read. A database works. So does a fast in-memory store like Redis, which is software built to hold small pieces of data in memory and share them over a network. Distributed caches such as Infinispan or Hazelcast do the same job. You do not need to know these yet. They are just examples. (Keeping copies of data in fast stores has its own failure mode: copies go out of date, as explained in [stale cache and cache stampede](/posts/stale-caches-explained/).)
 
 <figure>
 <div class="diagram diagram-wide">

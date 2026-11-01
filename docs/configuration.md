@@ -50,9 +50,25 @@ Nothing here needs configuring.
 | Search and AI crawler hints | A robots meta tag allowing large snippets and image previews on indexable pages, and `/llms.txt`, a plain-text list of every published post with its summary (drafts are never listed) |
 | Sitemap | `/sitemap.xml`, with last-modified dates for posts. Drafts are excluded |
 | RSS feed | `/rss.xml`, latest 20 posts, announced in every page's `<head>` |
-| Indexing control | The 404 page and per-topic pages are `noindex, follow`, and the topic pages are not in the sitemap |
+| Indexing control | The 404 page is `noindex, follow`. A topic page is `noindex` too, unless it has an introduction in `content/topics/<topic>.md` and at least two published posts. Then it becomes an indexable hub, with its own title, description, `CollectionPage` structured data, and a sitemap entry (see Topic hubs below) |
+| Icons | `favicon.ico`, SVG and PNG icons and an Apple touch icon, made from `static/favicon.svg` with `node icons.mjs`. Search engines need the ICO or PNG, an SVG alone is not enough |
 | Accessibility and speed | Semantic HTML, one `h1` per page, skip link, light and dark `theme-color`, deferred scripts, system fonts (no font downloads) |
 | Dates | Posts expose published and modified dates. Set `updated` when you revise a post |
+
+### Topic hubs
+
+Every tag has a page at `/tags/<tag>/`. To make one worth indexing, add `content/topics/<tag>.md` with a title (60 characters or fewer, starting with the phrase people search for), a description (about 160 characters) and a short introduction of 80 to 200 words:
+
+```markdown
+---
+title: Caching explained through real production failures
+description: How caches go wrong in production: stale data, stampedes and inconsistent servers.
+---
+
+A short introduction that says what the topic covers and who it is for.
+```
+
+The page stays `noindex` and out of the sitemap until the topic has two published posts, so a hub never appears as a thin list of one link. Do not link to specific posts in the introduction, because the post list below it is built automatically and a link to a draft would break. Introductions exist for caching, java, databases, scaling, reliability, security, performance and debugging.
 
 ### Link-preview card
 
