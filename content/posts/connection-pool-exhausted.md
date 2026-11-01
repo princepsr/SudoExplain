@@ -1,9 +1,8 @@
 ---
-title: Connection pool exhausted: why the app hangs under load
-date: 2026-11-01
-description: Why a healthy-looking Java service freezes under load, how leaked or hoarded database connections cause it, and how to find and fix them.
+title: HikariPool-1 Connection is not available: pool exhausted
+date: 2026-11-02
+description: Why a Java app hangs with Connection is not available errors under load, how leaked or hoarded connections cause it, and how to find and fix it.
 tags: java, databases, performance
-draft: true
 ---
 
 ## The doubt
@@ -36,7 +35,7 @@ If every connection is borrowed, the next request **waits** for one to come back
 
 The pool size is small on purpose. HikariCP, the usual Java pool, defaults to 10 connections. That is often enough, because a connection is only needed while a query runs.
 
-## Failure 1: the leak
+## Failure 1: a connection leak
 
 The simplest cause is a connection that is borrowed and never returned. Look at this code:
 
@@ -101,7 +100,7 @@ Pools exist **per server**. If each of your servers has a pool of 20, then:
 20 servers x 20 =  400 connections
 ```
 
-Databases have a connection limit of their own. PostgreSQL's `max_connections` defaults to 100, for example. Scale out past it and new connections are refused, with errors like `too many clients already`. The pool then fails to even create connections, and all servers break together.
+Databases have a connection limit of their own. PostgreSQL's `max_connections` is typically 100 by default, for example. Scale out past it and new connections are refused, with errors like `FATAL: sorry, too many clients already`. The pool then fails to even create connections, and all servers break together.
 
 This is the cruel part: you added servers to cope with load, and that is what took the database down.
 
@@ -163,7 +162,7 @@ public void placeOrder(Order order) {
 }
 ```
 
-Two cautions. First, `orderWriter` must be a separate bean. If `saveOrderAndPayment` sits in the same class, Spring's `@Transactional` is silently ignored. Second, charging before saving changes the failure mode: if the save fails, you charged a customer for no order. Use an idempotency key and a refund path, as in [the double-charge post](/posts/idempotency-key-double-charge/).
+Two cautions. First, `orderWriter` must be a separate bean. If `saveOrderAndPayment` sits in the same class, Spring's `@Transactional` is silently ignored. Second, charging before saving changes the failure mode: if the save fails, you charged a customer for no order. Use an idempotency key, a unique ID that lets the server recognise and ignore a repeated request, and a refund path.
 
 The principle: **a connection should be held only while the database is actually working**. Never across a network call, a file upload or a sleep.
 
@@ -187,8 +186,21 @@ Also set a **short connection timeout** (a few seconds rather than 30), for exam
 
 ## When the fix goes wrong
 
-- **Raising the pool size to 200.** More connections do not make the database faster. Past a point, they make it slower, because it spends time switching between them. If the real problem is a leak, a bigger pool just takes longer to run dry.
-- **Retrying on pool timeout.** Every retry joins the queue, so the queue gets longer exactly when the system is struggling. Retries need limits and delays. [The cascading failures post](/posts/cascading-failures-circuit-breaker/) covers this in depth.
+Two pitfalls look like sensible reactions. Both make an outage worse.
+
+**1. Raising the pool size to 200.** When requests wait for connections, a bigger pool looks like the obvious cure. It fails in two ways.
+
+First, the database has its own limit, and every server has its own pool. Say 5 servers each get a pool of 200. That asks for 5 x 200 = 1,000 connections, and a database that allows 100 refuses most of them. The pool then fails to even create connections, and all servers break together.
+
+Second, more connections do not make the database faster. Past a point they make it slower, because it spends time switching between them. And if the real problem is a leak, a bigger pool only delays the failure. Say a bug leaks one connection per failed request, and 5 requests fail each second. A pool of 10 is gone in 2 seconds. A pool of 200 is gone in 200 / 5 = 40 seconds. The outage is the same, just later.
+
+**What to do instead:** find out why connections are held, using the pool metrics and a thread dump. Then fix the leak or the long transaction, and size all pools together under the database limit, as in Fix 3.
+
+**2. Retrying on pool timeout.** The error says "try again later", so a retry looks natural. But the retry asks the same full pool for a connection. Say the pool has 10 connections, all busy, and 100 requests are waiting. They time out, and each is retried twice more, so 3 attempts each. Up to 3 x 100 = 300 requests now queue for the same 10 connections. The queue gets longer exactly when the system is struggling, and the pool may never catch up.
+
+**What to do instead:** do not retry on a pool timeout. Fail fast with a clear error, so the thread is freed. If a retry is needed, do it at one layer only, with a delay that grows and a limit on attempts.
+Smaller traps:
+
 - **Leak detection left at 0.** It is off by default. Turn it on in staging and production, with a threshold above your slowest legitimate query.
 - **Forgetting background jobs.** A nightly report that holds 5 connections for an hour can starve the web requests. Give batch work its own small pool.
 
@@ -204,7 +216,7 @@ Also set a **short connection timeout** (a few seconds rather than 30), for exam
 
 If you are not sure where to begin, begin with the pool metrics and a thread dump. Together they show whether the problem is waiting, leaking or too many servers in about five minutes.
 
-If the pool drains because queries themselves are slow, see [the slow query post](/posts/slow-query-missing-index/).
+If the pool drains because queries themselves are slow, look at the slow queries first. A missing index is a common cause, and `EXPLAIN` shows how the database runs a query. If one page runs hundreds of small queries, each request holds its connection for longer, and the [N+1 query problem](/posts/n-plus-one-query-problem/) is the likely cause.
 
 ## The takeaway
 

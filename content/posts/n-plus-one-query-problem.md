@@ -106,6 +106,8 @@ The cost grows with the data, and the code never changes:
 
 Each query is a **network round trip** to the database. Even when the database answers in a fraction of a millisecond, the trip costs more. Thousands of tiny trips add up to a slow page.
 
+A request that runs thousands of queries also holds its database connection for longer. Under load, that can use up the connection pool, as explained in [connection pool exhausted](/posts/connection-pool-exhausted/).
+
 This is why the bug ships dormant. In development, the database often runs on the same machine, so trips cost almost nothing, and a handful of rows is fast. It only wakes up when real data arrives.
 
 ## How to diagnose it
