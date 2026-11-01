@@ -116,12 +116,48 @@ When money crosses a boundary, use a form that cannot lose precision:
 
 ## When the fix goes wrong
 
-- **`BigDecimal.equals` and scale.** `new BigDecimal("2.0").equals(new BigDecimal("2.00"))` is **false**, because the two have different scales. Use `compareTo(...) == 0` to compare values. The same applies to using `BigDecimal` as a `HashMap` key.
+`BigDecimal` is exact, but it has its own traps. Three are worth a closer look.
+
+**1. `BigDecimal.equals` and scale.** You compare two amounts with `equals`, the way you would compare strings or ids. It looks right, and the values are equal. But `equals` on a `BigDecimal` also compares the **scale**, which is the number of digits after the decimal point. `2.0` has scale 1 and `2.00` has scale 2:
+
+```java
+BigDecimal x = new BigDecimal("2.0");
+BigDecimal y = new BigDecimal("2.00");
+// false: the scales differ
+System.out.println(x.equals(y));
+// true: the values are equal
+System.out.println(x.compareTo(y) == 0);
+```
+
+The same trap hides in collections. A `HashMap` uses `equals` and `hashCode`, so after `map.put(x, "a")`, the call `map.get(y)` returns `null` (checked on Java 21). A price that came from the database as `2.00` will not find the entry stored as `2.0`.
+
+**What to do instead.** Compare values with `compareTo(...) == 0`. For map keys, do not use raw `BigDecimal`. Give every amount the same scale first, for example with `setScale(2, RoundingMode.HALF_UP)`, or use the amount in minor units as a `long`.
+
+**2. Splitting an amount.** Three people share a bill of 100.00. You divide by 3 and round to cents. Each share is 33.33, and the three shares add up to 99.99. One cent has vanished. Rounding can also go the other way. Splitting 200.00 three ways with half-up rounding gives 66.67 each, and 3 × 66.67 = 200.01. One cent appeared from nowhere.
+
+The cause is that each share was rounded alone, and nothing checked the sum.
+
+**What to do instead.** Round the shares **down**, then give the leftover cents to the first share, so the parts always add up to the whole:
+
+```java
+BigDecimal share = total.divide(
+    BigDecimal.valueOf(n), 2, RoundingMode.DOWN);
+BigDecimal left = total.subtract(
+    share.multiply(BigDecimal.valueOf(n)));
+// first share = share + left, the others = share
+```
+
+For 100.00 this gives 33.34, 33.33 and 33.33, which add up to 100.00. For 200.00 it gives 66.68, 66.66 and 66.66, also 200.00 (both checked on Java 21).
+
+**3. Rounding hidden values.** Your rule says "round each invoice line to the cent". A helper then rounds the tax **per unit** too, because rounding "always seems safer". Take a 0.10 item with 5% tax. The exact tax per unit is 0.005, which rounds half up to 0.01. For 100 units, the invoice now shows 100 × 0.01 = 1.00 of tax. The exact tax is 100 × 0.005 = 0.50. The tax doubled, and no step looks wrong on its own.
+
+**What to do instead.** Keep full precision for values that nobody sees or stores. Round only at the points your written rule names, such as the invoice line. In this case that means working out 100 × 0.10 × 0.05 = 0.50 first, then rounding once.
+
+The smaller ones:
+
 - **Division.** `BigDecimal.ONE.divide(new BigDecimal(3))` throws `ArithmeticException: Non-terminating decimal expansion`. Give `divide` a scale and a rounding mode: `divide(new BigDecimal(3), 2, RoundingMode.HALF_UP)`.
-- **Splitting an amount.** Splitting 100.00 three ways gives 33.33 + 33.33 + 33.33 = 99.99. Compute the shares, then give the leftover cent to the first share instead of rounding each one.
 - **A `double` sneaking back in.** Calling `.doubleValue()` for a quick calculation, or reading a column through a `double`, undoes everything.
 - **Cents are not universal.** Japanese yen has no minor unit, and Kuwaiti dinar has three decimal places. A `long` of cents is wrong for them. Ask the currency with `Currency.getInstance("JPY").getDefaultFractionDigits()`.
-- **Rounding hidden values.** Do not round intermediate values that are never shown or stored, because the errors add up. Round exactly at the points your written rule names, such as each invoice line, and nowhere else.
 
 ## Which should you use?
 

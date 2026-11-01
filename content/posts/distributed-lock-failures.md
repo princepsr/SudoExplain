@@ -148,7 +148,18 @@ The Redis documentation links to both and says to "implement fencing tokens" if 
 
 ## When the fix goes wrong
 
-- **Renewing from a stalled thread.** If the renewal thread lives in the same paused process, it also stops. A lease renewed by the thing that freezes does not protect you.
+Two of these are easy to believe, so they come first. The short ones follow.
+
+**1. Treating the lock as a guarantee.** You take the lock, check that you still hold it, and then write. It looks safe: nobody else can hold the lock at the same time. But the check and the write are two steps, and a pause can fall between them.
+
+Take a lock with a 30 second expiry. Worker A gets the lock, then freezes for 40 seconds, for example in a long garbage-collection pause or because the virtual machine was paused. At 30 seconds the lock expires. Worker B takes it and writes its result. At 40 seconds A wakes up. Nothing told it the time passed, so it still believes it holds the lock, and it writes. A's old result replaces B's newer one.
+
+**What to do instead.** Do not rely on the lock alone. Make the resource refuse the stale write, as in Fix 1. A fencing token does it: B holds token 34, so when A sends token 33, the database sees that 33 is lower than 34 and rejects it. Where tokens are not possible, use a database constraint or an idempotent write, so a second run does no harm. The lock then only reduces duplicate work, and the resource guarantees correctness.
+
+**2. Renewing the lock from a thread that freezes too.** Another idea is to extend the expiry while the work runs, with a background renewal thread. That helps with a slow job. It does not help with a frozen process. A pause that stops the worker usually stops the renewal thread too, because both live in the same process. The lock expires anyway, as in the case above. Renewal is fine for long jobs, but it is not a safety net, so the resource still has to check.
+
+Smaller traps:
+
 - **Clock jumps.** The Redis documentation notes that Redis does not use a monotonic clock for TTL expiry, so a wall-clock shift can let two processes hold the lock. Set up time sync carefully.
 - **Treating the lock as a guarantee.** A lock with an expiry is a best-effort tool. If a double run causes real harm, the resource must check, using tokens, constraints, or idempotency.
 - **Token from the wrong place.** A counter that can go backward after a failover is not a fencing token.

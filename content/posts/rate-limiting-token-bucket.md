@@ -157,10 +157,27 @@ The alternative is to apply the limit **once, at the edge**, before traffic reac
 
 ## When the fix goes wrong
 
-- **Limiting by IP address only.** An office or a mobile network puts thousands of users behind one address, and they all get blocked together. Meanwhile, an attacker with many addresses is not limited at all. Prefer an API key or account, and use IP as a backstop.
+Three pitfalls are worth a closer look, because the limiter looks correct until real traffic arrives.
+
+**1. Limiting by IP address only.** The IP address is easy to read from every request, so it is the first thing people use as the key. But many people can share one address. An office or a mobile network often puts thousands of users behind a single public address (this is called NAT). Say you allow 100 requests a minute per address, and 2,000 staff share one. That is 100 ÷ 2,000 = 0.05 requests per person per minute, or one request every 20 minutes. They all get blocked together.
+
+In the other direction, an attacker with 1,000 addresses gets 1,000 × 100 = 100,000 requests a minute, and your limit never notices.
+
+Use an API key or an account as the key whenever the caller is known. Keep the IP address for callers who are not known yet, such as a login page, and as a generous backstop. One more warning: behind a proxy, your server sees the proxy's address. Read the real client address from the header that your own proxy sets, and never trust such a header when it comes straight from the client, because clients can fake it.
+
+**2. The limiter store goes down.** When the limit lives in a shared store such as Redis, every request asks it first. If the store is down, the limiter has two choices. **Fail open** means allow everything, so you risk overload. **Fail closed** means block everything, so you cause an outage.
+
+Many teams never choose. The call throws an error, nobody catches it, and every request returns a server error. That is failing closed by accident: your protection took the site down.
+
+Decide on purpose, and set a short timeout on the limiter call, so a slow store does not slow every request. For most APIs, failing open for a short time is the lesser harm, and you should alert someone. For login and expensive endpoints, fall back to a small in-memory limiter on each server. It is rough, since each server counts alone (see the section above), but it is better than no limit.
+
+**3. No `Retry-After`.** A **429** response means "too many requests". Say 1,000 clients get a 429 in the same second, and nothing tells them when to return. Many retry after a second or less, so the next second brings 1,000 requests again, and the flood continues.
+
+The `Retry-After` header tells the client how long to wait, in seconds. But if every client waits exactly 30 seconds, they all return at the same moment. So make your own clients add **jitter**, a random extra delay. If they wait 30 to 40 seconds, the 1,000 retries spread over 10 seconds, about 100 per second. See [the cascading failures post](/posts/cascading-failures-circuit-breaker/).
+
+The smaller pitfalls, in short:
+
 - **Counting after the work.** If the limiter runs after the expensive query, you have protected nothing. Check first, work second, and return 429 before touching the database.
-- **No `Retry-After`.** Without it, clients guess, and many retry immediately, which makes the flood worse. Always say how long to wait, and make your own clients obey it, with random jitter. See [the cascading failures post](/posts/cascading-failures-circuit-breaker/).
-- **The limiter store goes down.** You must choose: **fail open** (allow everything, risking overload) or **fail closed** (block everything, causing an outage). For most APIs, failing open for a short time is the lesser harm, but protect login endpoints differently.
 - **A limit that is too tight.** A bucket sized for averages blocks legitimate bursts. Size the capacity for real peaks.
 - **One limit for every endpoint.** A cheap `GET` and an expensive report should not cost the same. Charge more tokens for heavy calls.
 

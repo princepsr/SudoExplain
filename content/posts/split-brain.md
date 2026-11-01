@@ -124,10 +124,29 @@ If split brain has already happened:
 
 ## When the fix goes wrong
 
-- **A witness in the same site.** If it shares a data center with the primary, a site failure removes both votes.
+These fixes look complete on a diagram. Three of them fail in ways that only show up during a real outage.
+
+**1. A witness in the same site.** You have a primary in site A, a standby in site B, and a witness in site A, because that is where the spare machine was. That is 3 votes, so it seems safe.
+
+Now site A loses power. The primary and the witness both go down, and only 1 of the 3 votes is left. One vote is not a majority, so the standby in site B correctly refuses to promote itself. Nobody is in charge, and you are down until a person steps in. The witness did not break anything. It just was not independent of the primary.
+
+**What to do instead.** Put the witness in a third location that fails separately, such as another data center or cloud region. Then losing any one site leaves 2 of 3 votes.
+
+**2. A fence that depends on the network.** Fencing means making sure the old leader truly cannot act. A simple design is: the new leader sends the old one a "shut down" message. But in a partition, the old leader is exactly the server you cannot reach over that network. The message never arrives, and the old leader keeps accepting writes. The fence fails at the moment you need it.
+
+There is a second mistake. If the fence call fails and the new leader promotes anyway, you have two leaders again.
+
+**What to do instead.** Use a path that does not share the failure. Examples are a power controller on a separate management network, or storage that refuses writes from the old leader (see fencing tokens above). And make the rule strict: if the fence is not confirmed, the standby does **not** promote. It is better to be down than to have two leaders.
+
+**3. Timeouts that are too tight.** A short heartbeat timeout reacts fast, but it cannot tell a dead server from a stalled one. Say the timeout is 10 seconds. The leader freezes for 20 seconds, for example in a long garbage collection pause (when a program stops to clean up memory). The followers hear nothing for 10 seconds, elect a new leader and move on.
+
+Then the old leader wakes up. It does not know that time has passed. It still believes it leads, and it may accept a write before it hears about the new election. It does not matter that it checked a moment ago, because the pause can happen right after the check.
+
+**What to do instead.** A longer timeout reduces false alarms, at the cost of a slower reaction to real crashes. It cannot remove the risk, so also make the **storage** reject the old leader: with fencing tokens, the write from the stale leader carries an old number and is refused.
+
+Smaller pitfalls:
+
 - **Even-sized clusters.** A 2-2 split has no majority on either side, so everything stops.
-- **A fence that depends on the network.** If fencing needs to talk over the failed link, it will not work when you need it.
-- **Timeouts that are too tight.** A garbage collection pause can look like a death. The stalled node returns believing it still leads.
 - **Fixing the database but not the clients.** Clients holding old connections can keep writing to the old leader. Re-resolve addresses and drop old connections on failover.
 
 ## Which should you use?

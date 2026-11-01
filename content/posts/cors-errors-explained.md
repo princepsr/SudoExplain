@@ -169,8 +169,25 @@ Without Spring Security, the same list goes in a `WebMvcConfigurer` through `add
 
 ## When the fix goes wrong
 
-- **A wildcard with credentials.** If a request includes credentials such as cookies, and the response says `Access-Control-Allow-Origin: *`, the browser blocks it. Use an explicit origin. In Spring, a wildcard is not accepted in `allowedOrigins` when credentials are enabled. Use `allowedOriginPatterns` instead.
-- **A real error that looks like CORS.** If the server crashes with a 500 and the error page has no CORS headers, the browser reports a CORS error. The cause is in the server logs, not in the headers. Check the status in the Network tab.
+Two of these waste the most time, so they come first. The short ones follow.
+
+**1. Using `*` when the page sends cookies.** The wildcard `*` means "any origin may read this". It is the quickest way to make the error go away, so people use it first. It works until the page sends **credentials**, which means cookies or an `Authorization` header. For a request with credentials, the browser refuses to accept `*`. It wants the exact origin. So the same API works for a public call and fails the moment you add a login.
+
+Say your page at `https://app.example.com` sends its login cookie. The response must then look like this:
+
+```text
+Access-Control-Allow-Origin: https://app.example.com
+Access-Control-Allow-Credentials: true
+```
+
+**What to do instead.** Name the origin. If you have several, keep a list on the server, and reply with the origin only when the request's `Origin` header is on that list. Never copy back whatever origin arrives without checking, because then every site can read your users' data. In Spring, a wildcard is not accepted in `allowedOrigins` when credentials are enabled. Use `allowedOriginPatterns` for patterns, and keep them narrow.
+
+**2. A real error that looks like CORS.** You see "blocked by CORS policy" and start changing headers. But suppose the server crashed with a 500, and the error page came from a layer that does not add CORS headers. The browser sees a response with no `Access-Control-Allow-Origin`. It reports a CORS error and hides the real status from your code. No header change can fix a crash.
+
+**What to do instead.** Look at the request in the Network tab. If the status is 500 or 502, the problem is on the server, so read the server logs. You can also call the URL with `curl` and add an `Origin` header. That shows the true status and headers, because `curl` does not enforce CORS. Only when the status is fine and the header is missing is it a CORS setting.
+
+Smaller traps:
+
 - **A redirect on the preflight.** A redirect to another URL, such as from `http` to `https` or a trailing-slash rewrite, fails the preflight in current browsers, because a preflight needs an ok (2xx) status. Older browsers differed. Call the final URL directly.
 - **"Disable CORS" browser extensions.** They hide the error on your machine only. Your users still see it.
 - **Treating CORS as API security.** It does not protect your API. `curl`, a script or a server can call it freely. Authenticate and authorize every request on the server. The [broken access control post](/posts/broken-access-control-idor/) shows what happens when you skip it.

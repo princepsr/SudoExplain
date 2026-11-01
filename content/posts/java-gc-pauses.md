@@ -122,10 +122,29 @@ The cost: ZGC can use more CPU and memory than G1 for the same work, and it does
 
 ## When the fix goes wrong
 
-- **Copying a flag list from the internet.** Flags tuned for another JDK version, heap size or workload can make things worse. Some no longer exist and are ignored or rejected.
-- **Tuning before measuring.** Without a log that shows the pause, you are guessing. Change one thing at a time and compare logs.
-- **Giving the heap all the memory.** The JVM also needs memory outside the heap, and the operating system needs some too. In a container this ends with a kill, as in [the OOMKilled post](/posts/java-docker-oomkilled/).
-- **Setting an aggressive pause goal.** A very small `MaxGCPauseMillis` makes G1 collect more often to stay under it, which can reduce throughput.
+Tuning feels productive, so it is easy to do the wrong thing quickly. These are the traps to watch.
+
+**1. Copying a flag list from the internet.** The list worked for someone else, so it looks safe. But flags belong to a JDK version, a heap size and a workload. Old lists often contain flags for collectors that no longer exist. On the JDK 21 I tested, `-XX:+UseConcMarkSweepGC` (the old CMS collector) stops the JVM from starting at all:
+
+```text
+Unrecognized VM option 'UseConcMarkSweepGC'
+Error: Could not create the Java Virtual Machine.
+```
+
+That one fails loudly, which is the lucky case. Other flags are accepted and quietly change behaviour in ways nobody checked. A fixed young-generation size tuned for a small server, for example, can be wrong for yours.
+
+**What to do instead.** Start with no flags beyond GC logging. Add one flag at a time, for a reason you can state, and compare the logs before and after.
+
+**2. Setting an aggressive pause goal.** G1 has a target for pause length, set with `-XX:MaxGCPauseMillis`, and the default is 200 ms. A lower number looks like a free win: "we want short pauses, so ask for short pauses."
+
+But the goal is not free. G1 reaches a small goal by doing less work per pause, so it has to pause more often. I tried it on a small allocation loop with a 512 MB heap, run for 5 seconds. This was one run on my machine, so treat it as illustrative. With the default goal there were 61 pauses. With a goal of 5 ms there were 113, and the loop completed about 6% fewer iterations. Oracle's documentation says the same in words: G1 trades processor time for shorter pauses.
+
+**What to do instead.** Change the goal only when the log shows pauses longer than your users accept. Move it in small steps and check throughput too. If the goal is still missed, look at Fix 2 and Fix 3 before asking G1 for more.
+
+Smaller traps:
+
+- **Tuning before measuring.** Without a log that shows the pause, you are guessing. Change one thing at a time.
+- **Giving the heap all the memory.** The JVM also needs memory outside the heap. In a container this ends with a kill, as in [the OOMKilled post](/posts/java-docker-oomkilled/).
 - **Blaming the GC for slow code.** A slow database call also makes a latency spike. Match timestamps first.
 
 ## Which should you use?

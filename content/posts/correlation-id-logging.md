@@ -179,11 +179,30 @@ Sorting works only if each line begins with a timestamp in a sortable format, su
 
 ## When the fix goes wrong
 
+Two of these are easy to miss, so they come first. The short ones follow.
+
+**1. Trusting an outside ID blindly.** It feels friendly to accept the ID a caller sends, so the trace continues. But the caller can send any text. Your logger then writes that text into every log line, without checking it.
+
+Suppose the ID contains a line break followed by text that looks like a log line (illustrative):
+
+```text
+abc123
+2026-11-01 10:00:00 INFO  payment approved for user 9
+```
+
+Your log file now shows a second line that no code of yours wrote. Someone reading the logs, or a tool parsing them, believes it. This is called **log injection**: an outsider writes fake lines in your logs. Some servers and proxies already reject line breaks in headers, but do not count on it. The ID may also come from a queue message or another place with no such check. A very long ID is a smaller problem, but it adds up. A 1 MB ID printed on 100 log lines is 100 MB of logs from one request.
+
+**What to do instead.** Check every incoming ID. Accept it only if it matches a strict pattern, for example 8 to 64 characters of letters, digits and dashes. If it does not match, throw it away and create a new one. A strict pattern works because a line break or a huge string can never match it.
+
+**2. Forgetting to clear the MDC.** The MDC belongs to a thread, and web servers reuse threads. Say a thread handles request A and puts `req-A` in the MDC. An error skips the cleanup line, so `req-A` stays. Later the same thread runs a scheduled job, or a request that never sets an ID. Every line it logs now says `req-A`. When you search for `req-A`, you find lines that have nothing to do with it, and you may blame the wrong request.
+
+**What to do instead.** Set the ID in a filter, and clear it in a `finally` block, which runs even when the code throws an error. Then the thread is clean for the next task, whatever happened.
+
+Smaller traps:
+
 - **A new ID at every service.** If each service creates its own ID, nothing links them. Create one at the edge and forward it.
 - **Personal data in the ID.** Never build it from an email, user name or account number. IDs end up in logs, URLs and screenshots.
-- **Trusting an outside ID blindly.** A caller can send any string, including a huge one or one with line breaks that fake extra log lines. Check the format and length, for example 8 to 64 characters of letters, digits and dashes, and replace anything else.
 - **IDs that are not unique enough.** A counter, a timestamp or a short random number collides across servers. Use a random UUID or a 16-byte random value.
-- **Forgetting to clear the MDC.** Pooled threads are reused, so a leftover ID is attached to an unrelated request.
 
 ## Which should you use?
 

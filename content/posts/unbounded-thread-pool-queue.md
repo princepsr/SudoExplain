@@ -124,10 +124,23 @@ This stops the zombie work, so the queue drains quickly after a spike instead of
 
 ## When the fix goes wrong
 
+A bounded queue and a rejection policy are the right fix, but each piece has a catch.
+
+**1. Expecting extra threads to help.** A common setup is 10 core threads and a maximum of 50, "so the pool grows under load". It does not grow when you expect. A `ThreadPoolExecutor` starts a thread beyond the core size only when the queue is **full**. With an unbounded queue it is never full, so the maximum is ignored.
+
+Even with a bounded queue the growth comes late. I ran a pool with 10 core threads, a maximum of 50 and a queue of 200, using tasks that never finish. Tasks 1 to 10 started threads. Tasks 11 to 210 went into the queue, so there were still 10 threads. Task 211 was the first to start an 11th thread. Thread 50 started with task 250, and task 251 was rejected.
+
+So the extra threads help only after 200 tasks are already waiting. If you want them early, use a small queue. If you do not need them, set the core and maximum to the same number, as in Fix 1.
+
+**2. Running the rejected task on the wrong thread.** `CallerRunsPolicy` makes the thread that submitted the task run it. That slows the producer, which is the goal. But some callers must never be slowed. A network event-loop thread, for example, serves many connections at once. If it runs a 2-second task, every other connection on that thread freezes for 2 seconds. Use `CallerRunsPolicy` only when the caller is a thread that can afford to be busy. Otherwise use `AbortPolicy` and return an error.
+
+**3. Rejecting without backoff.** Suppose the pool can finish 100 tasks per second and 200 arrive. Half are rejected, and each rejected client retries at once. The next second brings those 100 retries plus 200 new tasks. That is 300 tasks for a pool that can do 100. Rejecting made the load worse.
+
+Return 503 with a `Retry-After` header and make clients wait. Better still, clients should wait longer after each failure, with a random delay added so they do not all return together. [The cascading failures post](/posts/cascading-failures-circuit-breaker/) goes deeper.
+
+Smaller traps, in short:
+
 - **A queue that is still too big.** A bound of 100,000 is not a bound. At 100 tasks per second, that is a 1,000-second wait. Size it from the wait you can accept.
-- **Extra threads that never appear.** A `ThreadPoolExecutor` adds threads beyond the core size only when the queue is full. With an unbounded queue, the maximum size is ignored. With a bounded one, the extra threads start late.
-- **`CallerRunsPolicy` on the wrong thread.** If the caller is a network event-loop thread, running the task there blocks the loop and freezes unrelated connections.
-- **Rejecting without backoff.** If callers immediately retry every rejected request, the retries add to the load you just refused. Clients need to wait before they retry. [The cascading failures post](/posts/cascading-failures-circuit-breaker/) goes deeper.
 - **`DiscardPolicy` as the quick fix.** The errors vanish and so does the data. You find out from customers.
 - **Too many threads as a "fix".** More threads on a CPU-bound or database-bound task only adds contention.
 

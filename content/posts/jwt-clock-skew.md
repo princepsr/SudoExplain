@@ -110,10 +110,27 @@ When the issuer sets `nbf` to exactly `iat`, any forward drift on the issuer bre
 
 ## When the fix goes wrong
 
-- **A leeway that is too big.** Allowing 10 minutes of skew effectively **extends every token by 10 minutes** and lets a not-yet-valid token through. A leeway is a safety margin of seconds, not minutes.
-- **Leeway used to hide a broken clock.** If one server is a minute out, a 60-second leeway makes the error disappear from the logs while the real problem grows. Watch the offset.
+A leeway is a small tool that is easy to misuse. The first three cost the most.
+
+**1. A leeway that is too big.** When the errors appear, the quick answer is to allow 10 minutes of skew, and the errors vanish. But the leeway applies to every check, for every token, not only to the ones with a skewed clock.
+
+Take a token that lives 15 minutes (900 seconds). With a 10 minute (600 second) leeway, the server still accepts it until 900 + 600 = 1500 seconds, which is 25 minutes. A token that should be dead after 15 minutes works for 10 more, which helps anyone who has stolen one. A token whose `nbf` is 10 minutes in the future is also accepted now.
+
+**What to do instead.** Keep the leeway to seconds, such as 30. That covers normal small clock differences. A bigger gap means a broken clock, which you should fix.
+
+**2. Using leeway to hide a broken clock.** A leeway makes the error disappear from the logs, so the problem looks solved. But the clock is still wrong, and it keeps drifting.
+
+Imagine a server with no time sync that drifts 5 seconds a day (invented numbers). With a 60 second leeway, nobody notices for 12 days. On day 13 the offset is 65 seconds, and logins fail with no change in the code. Meanwhile, the logs from that server carry wrong times, which makes every other incident harder to read.
+
+**What to do instead.** Fix the sync (Fix 1) and watch the offset, with an alert at about one second. Then the leeway only has to cover tiny differences.
+
+**3. Trusting the browser's clock.** A front end often reads `exp` from the token and logs the user out when "now" passes it. Here "now" is the user's device, and devices can be hours wrong. If a device clock is 2 hours fast and the token lives 15 minutes, the page sees a token that expired 1 hour 45 minutes ago. It logs the user out at once, again and again. If the clock is 2 hours slow, the page keeps using a token the server already rejects.
+
+**What to do instead.** Do not compare `exp` with the device clock. Use the lifetime the server tells you. In OAuth 2.0, the token response carries `expires_in`, the number of seconds the token lives. Start a timer when the response arrives and refresh a little before it ends. A timer only measures elapsed time, so the device's wrong date does not matter. And treat a `401` from the server as the final answer.
+
+Smaller traps:
+
 - **Fixing it by hand.** Setting a clock manually works until it drifts again. Use NTP.
-- **Trusting the browser's clock.** A user's device can be hours wrong. Do **validation** on the server. If a front end checks `exp` to decide when to log out, use a margin and a server response as the final word.
 - **Time jumps.** A VM resume or an NTP correction can move the clock in a step, and tokens issued just before the jump can fail. Short outages around those moments are expected.
 - **Mocked clocks in tests.** A test that freezes time hides skew problems. Test with the clock a few seconds off in both directions.
 

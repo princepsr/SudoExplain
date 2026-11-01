@@ -125,13 +125,41 @@ For multi-tenant data, where many customers share one database, a database-level
 
 ## When the fix goes wrong
 
+Even a correct ownership check can leave holes. These three matter most.
+
+**1. Side doors.** After Fix 1, `GET /invoices/{id}` checks the owner. But the same data may leave through other routes: a batch call such as `GET /invoices?ids=1001,1002,1003`, a CSV export, a PDF download, a search. Each one is separate code. If the batch route calls `findAllById(ids)`, it returns all three invoices, whoever owns them. The fix and the test covered one door, and the others stayed open.
+
+**What to do instead:** put the owner rule in one shared place that every route uses, such as a repository method like `findAllByIdInAndCustomerId`, or a central policy. Then list every route that touches the data, and make the two-account test hit all of them, including list, batch, export and download.
+
+**2. Trusting a role from an old token.** A JWT (a signed login token, covered in the [sessions post](/posts/sessions-jwt-and-load-balancers/)) carries claims, such as a role, that were true when it was issued. The server does not ask again while the token is valid. Say a token is issued at 09:00 and lasts one hour. At 09:10 you remove the user's admin role. The token still says "admin", so the user keeps admin power until 10:00, 50 more minutes.
+
+**What to do instead:** keep tokens short-lived, for example 5 minutes, so a stale role fades quickly. For sensitive actions, such as deleting data, exporting it or changing roles, read the user's current role from your database instead of trusting the token. This costs one lookup per sensitive request, which is cheap for the safety it buys.
+
+**3. Mass assignment.** This happens when the server copies a whole JSON body onto an object. This is illustrative, not run:
+
+```java
+// Unsafe: the client can set any field of User
+@PutMapping("/users/me")
+public User update(@RequestBody User body) {
+    return userRepository.save(body);
+}
+```
+
+The page only sends `{"email": "new@example.com"}`. But a user can send `{"email": "new@example.com", "role": "ADMIN"}` by hand, and now they are an admin. A field like `"ownerId": 5` can move a record to someone else the same way. Hiding the field in the form does nothing, because the client can send any JSON it likes.
+
+**What to do instead:** accept a small class that lists only the fields you allow, and copy them over yourself:
+
+```java
+// Safe: only these fields can come from the client
+record UpdateProfile(String email, String displayName) {}
+```
+
+Smaller traps:
+
 - **Checking `GET` but not `PUT` and `DELETE`.** Writes are the more dangerous half. Cover every method.
 - **A filtered list but an unprotected detail page.** The list shows only your items, but `/items/{id}` returns anyone's. Check both.
 - **Authorization only in the interface.** Hiding a button is a usability feature. The server must refuse the request itself.
 - **Caching a protected response.** If a cache stores `/invoices/1002` by URL alone, the next user may receive the stored copy. The [stale caches post](/posts/stale-caches-explained/) covers caches: personal data needs the user in the cache key, or no caching.
-- **Trusting a role from an old token.** A JWT (a signed login token, covered in the [sessions post](/posts/sessions-jwt-and-load-balancers/)) carries the role it had when issued. If a user's access was removed ten minutes ago, the old token still says "admin" until it expires. Check sensitive actions against current data.
-- **Side doors.** Export endpoints, file downloads, reports, search and batch calls such as `?ids=1,2,3` often skip the checks the main endpoint has.
-- **Mass assignment.** A JSON update that binds straight onto an entity lets a user send `"role": "ADMIN"` or `"ownerId": 5`. Accept only the fields you intend.
 
 ## Which should you use?
 

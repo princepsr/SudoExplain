@@ -182,6 +182,18 @@ You do not need every row for every post. A short post can be a doubt, the basic
 
 Do not write "what X is". Write "what happens in production when X goes wrong". A post on garbage collection is about a leak that a strong reference causes, not a definition of the collector. A post on caching includes the stampede that its own fix can cause. Readers are mostly engineers who know the common terms, so keep the basics to a paragraph and spend the words on the failure, how to diagnose it, and what each fix costs. If a topic has no failure people really meet, it does not get a post. The list of planned posts is in [post-roadmap.md](post-roadmap.md).
 
+### "When the fix goes wrong" is a core section, so do not summarise it
+
+Every post ends its fixes with what can go wrong when a fix is used badly. This is where readers learn the most, so give each pitfall its own short explanation and not a one-line bullet. The N+1 post is the model. For each pitfall:
+
+1. **Say what people try and why it looks right.** "Make everything eager: the customer always arrives with the order."
+2. **Show what goes wrong, with small numbers.** Use a tiny worked case the reader can follow on one screen, such as 2 orders with 3 items and 4 payments, then say how it grows. Check every number.
+3. **Explain any new word where it appears.** "Paging", "session" and "batch size" were each defined in one sentence before they were used.
+4. **Say what to do instead,** and why that works. If a step is not obvious, split it into numbered steps.
+5. **Use a bold number and a name for each pitfall,** such as `**3. Making everything EAGER.**`, so readers can find it again.
+
+Keep code lines under about 62 characters and put comments on their own line above the code, so nothing scrolls sideways on a laptop. Never link to a post that is still a draft, because the link would be dead on the live site.
+
 ### Ten habits
 
 1. **Start from a real question.** Use the question you actually asked yourself, in your own words, as a quote. Readers share the doubt before they see the answer.
@@ -238,6 +250,7 @@ Use invented names and numbers (`user 42`, `Server A`, `example.com`) and write 
 - [ ] `draft: true` has been removed
 - [ ] `node og-images.mjs` has been run, so the post has its own share card
 - [ ] The post links to two or three related posts, and one or two older posts now link to it
+- [ ] Links to posts that are still drafts are turned into plain text, and added back when those posts go live. Drafts may link to each other while you write, so you can see what to connect
 
 ## Troubleshooting
 

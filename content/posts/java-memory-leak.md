@@ -174,9 +174,22 @@ Weak references are also cleared at the collector's convenience, so an entry can
 
 ## When the fix goes wrong
 
-- **Raising `-Xmx`.** A bigger heap delays the crash from Friday to the following Tuesday, and makes each full collection pause longer. It is a stopgap, never a fix.
-- **Restarting every night.** It hides the leak and it works for a while. But when traffic grows, the leak fills the heap before the restart, and the incident arrives at 3 a.m.
-- **A "bounded" cache with a bad key.** If the key includes something unique per request, such as a timestamp, a limit of 10,000 entries means the cache never gets a hit. It is full of useless entries and does no good.
+The leak is the cause, so anything that only hides it will fail later. Here are the three tempting ones.
+
+**1. Raising `-Xmx`.** It looks right because the crash said "out of memory". But a leak does not stop growing when you give it more room. Take the numbers from the example: the heap held 400 MB after day 1 and 3.4 GB after day 5, so it grew about 750 MB a day. A 4 GB heap fills in about 5 days. An 8 GB heap fills in about 10 days. You bought five days, and you pay for twice the memory. The heap dump you will need is also twice as big, and each full collection has more live objects to walk.
+
+**What to do instead.** Treat a bigger heap as a short delay while you find what holds the memory, using a heap dump.
+
+**2. Restarting every night.** A restart empties the heap, so the crash never arrives. That works as long as the leak needs more than a day to fill the heap. At 750 MB a day and 4 GB, it does. But leaks grow with traffic. If traffic becomes 5 times larger (a sale, a new customer), the leak grows to about 3.75 GB a day. The heap then fills in under a day (about 3.6 GB of room divided by 3.75 GB a day is 0.96 days), so the crash comes before the restart, at the busiest time.
+
+**What to do instead.** Use the restart only to buy time, with an alert on the heap level after each collection (the floor). Then fix the leak.
+
+**3. A "bounded" cache with a bad key.** A cache needs a limit, so you add one of 10,000 entries. Good. But look at the key. If it holds something unique per request, such as a timestamp, no request ever finds an old entry. Every call is a miss and goes to the database as before. The cache is always full of entries nobody will ask for again. Memory stops growing, so the leak looks fixed, but you now have a cache that does nothing and a database that gets just as much work.
+
+**What to do instead.** Build the key only from what identifies the data, such as the product id. Then measure the hit rate, which is the share of lookups answered from the cache. Caffeine reports it when you enable `recordStats()`. A hit rate near zero means the key or the limit is wrong.
+
+Smaller trap:
+
 - **Capping a cache too high.** A limit of 50 million entries is a limit in name only. Size it from your memory budget: entries multiplied by average entry size.
 
 ## Which should you use?

@@ -177,9 +177,21 @@ For memory, raise the limit or lower the app's use, as the OOMKilled post explai
 
 ## When the fix goes wrong
 
+Two of these look harmless but keep the loop going, so they come first. The short ones follow.
+
+**1. Hunting for a crash in the logs when the system killed the app.** You see a high restart count, so you read the logs and look for an error. There is none. The logs just stop. That is because the app did not crash. The system killed it, with no chance to write a last message.
+
+Say the memory limit is 256 MiB and the app needs 300 MiB while it loads data. The moment it crosses 256 MiB, the system kills it. Nothing in the app's own log explains it. The restart count only says "many restarts". The proof is in `kubectl describe pod`, in the `Last State` block: `Reason: OOMKilled`, with exit code 137.
+
+**What to do instead.** Check `Last State` first. If it says `OOMKilled`, memory is the problem, not the code. Raise the limit, or lower the app's memory use. Raising the limit alone only delays the next kill if the app has a memory leak, so watch the usage afterwards.
+
+**2. No startup probe on a slow app.** Say your app needs 60 seconds to start. The liveness probe checks every 10 seconds and allows 3 failed checks in a row. After about 30 seconds of failures, Kubernetes kills the container, because it believes the app is stuck. The new container then starts from zero and is killed at about 30 seconds again. It never reaches 60, so it can never become healthy.
+
+A **startup probe** fixes this. It runs first, and the liveness probe waits until it succeeds once. The wait time is the period times the failure threshold. With `periodSeconds: 5` and `failureThreshold: 30`, as in Fix 3, the app gets up to 5 × 30 = 150 seconds. Set it above your slowest real start. If the startup probe never succeeds, Kubernetes still kills the container, so the limit does not wait forever.
+
+Smaller traps:
+
 - **Reading only the current logs.** A container that just restarted has almost no output. Always add `--previous`.
-- **A restart count that hides an OOM kill.** The count only says "many restarts". Check `Last State` for `OOMKilled`, because the application logs show nothing when the system kills a process.
-- **No startup probe on a slow app.** The liveness probe fires before the app is ready, kills it, and the loop starts over.
 - **Changing the image tag but not the digest.** A tag such as `1.4` can point to different content over time, and nodes may reuse a cached copy. A **digest** (`image@sha256:...`) names exact content.
 - **Fixing the wrong pod.** A Deployment recreates pods from its template. Edit the Deployment, not the pod.
 - **Restart policy `Never`.** A pod with it does not restart at all, so you will see `Error`, not a loop.

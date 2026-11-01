@@ -161,11 +161,25 @@ Run the headroom queries daily and alert at 50 percent, and again at 70. At 50 p
 
 ## When the fix goes wrong
 
-- **The sequence is still `integer`.** A `serial` column creates an `integer` sequence. For a `serial` column, changing the column to `bigint` does not change the sequence's maximum, so inserts still stop at 2,147,483,647. Check the sequence's own type in `pg_sequences`, and change it with `ALTER SEQUENCE ... AS bigint`.
-- **Foreign keys elsewhere are still INT.** A child table that stores the id in an `int` column fails as soon as a parent id passes the limit.
-- **Ids stored in other systems.** Message queues, search indexes, analytics tables, and other services may keep the id in a 32-bit field. Ask every owner.
+The type change is easy to start and easy to leave half done. Three gaps matter most.
+
+**1. The sequence is still `integer`.** You run `ALTER TABLE orders ALTER COLUMN id TYPE bigint`. The column now says `bigint`, so the job looks finished. But in PostgreSQL the counter is a separate object, the sequence, and a `serial` column created it as `integer`. Changing the column does not change the sequence. Its maximum stays at 2,147,483,647, and the next insert after that fails with `nextval: reached maximum value of sequence`, even though the column could hold far more.
+
+**What to do instead.** After the column change, look at the sequence itself. The `data_type` and `max_value` columns of `pg_sequences` show what it really allows. If it is still `integer`, run `ALTER SEQUENCE orders_id_seq AS bigint`. PostgreSQL then raises the maximum to the `bigint` limit, as long as the old maximum was the default one for `integer`. Check `pg_sequences` again to confirm.
+
+**2. Foreign keys elsewhere are still `int`.** A **foreign key** is a column in one table that stores the id of a row in another table. Say `order_items.order_id` is an `int` and points at `orders.id`. The day `orders` hands out id 2,147,483,648, the order itself is stored fine. Then the code inserts its first item, and the database rejects the value with `integer out of range`. Every new order now fails halfway.
+
+The same happens wherever a copy of the id lives: history tables, audit tables, message payloads, search indexes, other services. Any 32-bit field breaks at the same moment.
+
+**What to do instead.** Make a list of every place that stores the id, and ask each owner. Widen the child columns and the other systems first, and the parent table last. A wider child can already hold small ids, so nothing breaks during the change. A narrow child cannot hold a big parent id.
+
+**3. JavaScript clients.** After the move to `bigint`, the API starts sending ids as JSON numbers, and a browser or Node client reads them as 64-bit floating point numbers. Those are exact only up to 2^53 − 1. Above that, two different ids can become the same number. `9007199254740993` and `9007199254740992` both read back as `9007199254740992` (checked in Node). A user may then open the wrong record. Nothing throws an error.
+
+**What to do instead.** Send ids as strings in JSON: `"id": "9007199254740993"`. A string is copied as it is, with no rounding. The client should treat the id as an opaque label and never do arithmetic on it. Do this before ids get large, because the change is a breaking one for existing clients.
+
+The smaller ones:
+
 - **ORMs mapping to Integer.** In Java, an entity field typed `Integer` cannot hold a big id. Change it to `Long`, and check generated DTOs and API clients.
-- **JavaScript clients.** After the move to `bigint`, ids above 2^53 − 1 arrive damaged unless they are strings.
 - **Fixing the type but not the rate.** If failed retries burn most of the ids, find out why they fail. See [the race conditions post](/posts/race-condition-check-then-act/) for one common cause.
 
 ## Which should you use?

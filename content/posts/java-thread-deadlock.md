@@ -188,11 +188,30 @@ A timeout turns a silent hang into a failure you can log and retry. The cost is 
 
 ## When the fix goes wrong
 
-- **Nested `synchronized` inside callbacks.** Method X locks A and calls a callback. The callback locks B. Elsewhere B is held and A is wanted. The two locks look unrelated in the code.
-- **Locks in different classes.** Two classes each lock their own object and call into each other. Each class looks correct alone.
+A fixed lock order only works for the locks you can see. These are the traps that survive a code review.
+
+**1. A hidden lock behind a callback.** The thinking: "We sort the locks by account id, so a circle cannot form." That is true for the two account locks. But suppose `transfer()` also tells a listener about the move while it still holds both locks. The listener is a **callback**, which is code passed in from outside. Say it takes an audit lock.
+
+Elsewhere, an audit report takes the audit lock first, and then reads an account balance, which needs the account lock. Now look at the order (a made-up case):
+
+```text
+transfer thread:  account lock -> audit lock
+report thread:    audit lock   -> account lock
+```
+
+That is the same circle as before, with one lock hidden in another class. Each class looks correct on its own, so reading one file does not find it. The same happens when a method you call is `synchronized` and you did not know.
+
+**What to do instead.** Do not call outside code while you hold a lock. Collect what the listener needs, release the locks, and then call it. If you cannot avoid it, put the extra lock into the written order, so that everything touching the audit lock agrees on where it comes in. If you miss one, a thread dump will still name the lines.
+
+**2. A timeout that is ignored or retried at once.** `tryLock` with a timeout turns a hang into a failure. But what the code does after the failure matters.
+
+If the code ignores the `false` result, the transfer is silently skipped. Nobody sees an error, and the money never moves. If the code retries at once, two threads that failed together will usually try again together. Each takes its first lock, waits for the second, times out, and repeats. They are no longer stuck for good, but they can keep failing for a long time. Threads that stay busy and never finish are called a **livelock**.
+
+**What to do instead.** Treat `false` as a real result: log it, and return an error or queue the work. If you retry, wait a short random time first, so the threads stop moving in step, and give up after a few attempts.
+
+Smaller traps:
+
 - **Ordering that skips some paths.** Sorting in `transfer()` does not help if another method locks the same objects another way.
-- **A timeout with no handling.** If `tryLock` fails and the code ignores it, you may skip work silently.
-- **A retry loop with no limit.** Threads can keep colliding. Cap the attempts.
 - **Believing a restart is a fix.** It clears the hang and keeps the bug.
 
 ## Which should you use?

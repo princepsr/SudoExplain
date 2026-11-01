@@ -173,9 +173,22 @@ The underlying SQL state is `40P01` for PostgreSQL's deadlock and `40001` for se
 
 ## When the fix goes wrong
 
-- **Retrying without limit.** A tight infinite retry loop makes contention worse. Cap the attempts and add a random pause.
-- **Retrying work that has side effects.** If the transaction also sent an email or called a payment API, a retry repeats it. Keep side effects out of the retried block, or make them idempotent (safe to run twice). The [retries and idempotency post](/posts/idempotency-key-double-charge/) explains how.
-- **Ordering inside a method but not across them.** Locking by ID in `transfer()` does not help if another method locks the same accounts in a different order. The order must be a **team rule**.
+Three of these hide the problem instead of fixing it, so they come first. The short ones follow.
+
+**1. Retrying with no limit and no pause.** A retry is the right answer to a deadlock error, because the other transaction finishes and the retry usually succeeds. The mistake is to retry at once, in a loop with no end. Say 10 requests deadlock at the same moment. All 10 retry at the same moment, and they collide again. Each round adds load, and the problem can feed itself.
+
+**What to do instead.** Cap the attempts, for example at 3. Wait a short random time before each retry, for example between 50 and 200 milliseconds. The random part is the point. Requests that collided now come back at different times, so they no longer meet. If the cap is reached, return an error, so the failure is visible.
+
+**2. Retrying work that has side effects.** A deadlock rolls back the database changes. It does not undo an email that was already sent or a payment API call that already went out. Say the transaction charges a card, then fails with a deadlock at the next statement. The retry runs the whole method again, and the card is charged twice. The database is correct, and the customer is not.
+
+**What to do instead.** Keep side effects out of the block you retry. Do them after the commit succeeds. If that is not possible, make them **idempotent**, which means safe to run twice, usually with a unique key that the receiver uses to ignore a repeat. The [retries and idempotency post](/posts/idempotency-key-double-charge/) explains how.
+
+**3. Ordering inside one method but not across them.** You fix `transfer()` so it always locks the account with the lower ID first. The deadlocks drop, then come back. Somewhere, a `refund()` method locks the `to` account first. Take accounts 1 and 2. A transfer locks 1 then 2. A refund locks 2 then 1. That is the same circle as before.
+
+**What to do instead.** Make the order a **team rule**, not one method's habit: every code path that locks several rows does it in the same order, for example by ID. A shared helper that returns the locked rows already sorted makes the rule hard to forget.
+
+Smaller traps:
+
 - **Confusing a deadlock with a lock timeout.** "Lock wait timeout exceeded" in MySQL means someone held a lock for too long. PostgreSQL has a similar `lock_timeout` setting. It is a different problem, usually a long transaction.
 - **Higher isolation levels.** `SERIALIZABLE` prevents more anomalies but can raise the number of conflicts, reported as serialization failures. Use it knowingly.
 - **A hot row.** If thousands of transactions update the same row, such as a global counter, they queue up behind each other. Spread the counter across several rows, or move it elsewhere.

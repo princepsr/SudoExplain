@@ -128,9 +128,31 @@ Node.js has one event loop thread for JavaScript. A synchronous call such as `fs
 
 ## When the fix goes wrong
 
+Two pitfalls are easy to miss, because the code looks right.
+
+**1. Blocking inside a callback.** You use `Mono` and `Flux`, so it feels like everything is asynchronous. It is not. An operator such as `map` does not move work to another thread. By default it runs on the thread that delivered the previous value, which here is the loop thread. This is illustrative, not run:
+
+```java
+// Looks reactive, but the JDBC call runs on the loop thread
+Mono<Report> report(String id) {
+    return Mono.just(id)
+               .map(i -> repository.loadBlocking(i));
+}
+```
+
+Reactor throws an error if you call `.block()` on some of its own threads, but a plain JDBC call inside `map` raises no error at all. The service just freezes under load. The same is true of `doOnNext` and `flatMap`. Changing the operator does nothing. What matters is which thread runs the call.
+
+**What to do instead:** wrap the call in `Mono.fromCallable` and add `subscribeOn(Schedulers.boundedElastic())`, as in Fix 2. Then check with BlockHound, which will name any blocking call that is left.
+
+**2. The separate pool is too small.** Moving the call off the loop protects the loop. It does not make the call faster. Say the machine has 4 CPU cores. `boundedElastic` allows up to 10 times that, so 40 threads. The database call takes 2 seconds. Each thread finishes one call per 2 seconds, so the pool handles 40 / 2 = 20 calls per second.
+
+Now 50 requests per second arrive. The extra 50 - 20 = 30 per second wait in a queue. After 10 seconds, 300 are waiting, and a new request waits about 300 / 20 = 15 seconds before its call even starts. Reactor's queue is large by default (up to 100,000 waiting tasks, per its documentation), so it will not reject anything. It just makes everyone wait. The loop stays healthy, but users see timeouts.
+
+**What to do instead:** put a timeout on the whole call, so a waiting request fails quickly. Limit how many calls may wait, for example with `Schedulers.newBoundedElastic`, which lets you set the queue size. And size the pool from what the dependency can take, not from how many requests you have.
+
+Smaller traps:
+
 - **The separate pool is unbounded.** A thread pool that creates threads without limit can exhaust memory. A queue without limit hides overload until latency explodes. See [the unbounded thread pool queue post](/posts/unbounded-thread-pool-queue/).
-- **The separate pool is too small.** If every thread waits on a slow dependency, new calls queue and all requests slow down again. Size it from the dependency's capacity, and set timeouts.
-- **Blocking inside a callback.** Putting `.block()` or a JDBC call inside `map` or `doOnNext` still runs on the loop thread. Move the call, not the operator.
 - **One slow dependency drags everything.** A pool full of waiting calls looks like an outage. Add timeouts and a circuit breaker, as in [the cascading failures post](/posts/cascading-failures-circuit-breaker/).
 - **Trusting a library's name.** A "reactive" wrapper can still block inside. Test it with BlockHound.
 

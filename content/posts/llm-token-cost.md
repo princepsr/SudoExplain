@@ -126,11 +126,36 @@ Retrieve fewer, better chunks ([the RAG post](/posts/rag-wrong-answers/) covers 
 
 ## When the fix goes wrong
 
-- **Truncating history too hard.** If you drop earlier turns, the assistant forgets what the user said. Summaries help, but a summary can also lose or distort facts, and errors compound over many rounds.
-- **Summaries that break caching.** Rewriting older turns changes the start of the prompt, so a cached copy no longer matches. Summarize rarely, in big steps.
-- **Caching the wrong thing.** A cached answer that includes one user's data must never be served to another. A cache has to key on who is asking, not only on the question. Cache only answers that do not depend on the user. (See [the stale cache post](/posts/stale-caches-explained/) for what a cache is.)
+The first three are the easiest to get wrong.
+
+**1. Cutting the history too hard.** The fastest way to save tokens is to send fewer old turns. But the model only knows what you send. If the user said "my order number is 4471" in turn 2 and you send only the last 6 turns, in turn 10 the assistant has forgotten it and asks again, or guesses.
+
+Summaries help, but a summary is written by a model, so it can drop a fact or bend one. The next summary is then built on the bad one, and the error stays. Rewriting older turns also changes the start of the prompt, so a cached copy of it no longer matches (see Fix 4). So keep the facts that must survive, such as order numbers and decisions, in a separate small record that you always send. Then summarize rarely and in big steps, and test with questions that depend on early turns.
+
+**2. Caching the wrong thing.** A **cache** keeps a saved answer so you can skip the work next time (see [the stale cache post](/posts/stale-caches-explained/)). Caching whole answers is cheap and works well for "what are your opening hours?".
+
+It goes wrong when the answer holds one user's data. Say Ann asks "what is my balance?" and the cache key is the question text. The answer "Your balance is $120" is saved. Ben asks the same words, gets Ann's answer, and has seen her private data. No error appears.
+
+Cache only answers that do not depend on who is asking. If you must cache personal answers, put the user's ID in the cache key, so Ann and Ben never share an entry.
+
+**3. A cheaper model that costs more.** Sending simple tasks to a small model looks like a clear saving. But suppose a check on the small model's answer fails 7 times in 10, and your code retries up to 2 more times before it falls back to the big model. These prices are invented (illustrative): $0.004 per small call and $0.010 per big call. For 1,000 tasks:
+
+```text
+first tries:    1,000 small calls
+second tries:     700 (70% failed)
+third tries:      490 (70% of 700)
+big model:        343 (70% of 490)
+
+small: 2,190 calls x $0.004 = $8.76
+big:     343 calls x $0.010 = $3.43
+total: $12.19, versus $10.00 for big only
+```
+
+The "cheap" route costs more, and it is slower too. Measure the success rate of the small model on your own tasks before you route to it. Only route the kinds of task where it usually passes, and stop retrying after one try.
+
+Shorter ones:
+
 - **A cache prefix that keeps changing.** Putting a timestamp or user name at the top of the prompt changes the start every call, so the cache never hits.
-- **A cheaper model that costs more.** If the small model gets it wrong and your code retries or escalates, the total can exceed one call to the big model. Measure quality and cost together.
 - **Budgets that block good customers.** A hard cap that stops a heavy but legitimate user is its own incident. Warn first, and have a clear path to raise the limit.
 - **Counting characters, not tokens.** Code, numbers and many non-English languages produce more tokens per word than plain English. Use the provider's tokenizer or the reported counts, not a guess.
 

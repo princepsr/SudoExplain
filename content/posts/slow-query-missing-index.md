@@ -128,12 +128,34 @@ For a leading wildcard such as `LIKE '%smith'`, PostgreSQL's `pg_trgm` extension
 
 ## When the fix goes wrong
 
-- **An index on a column where most rows share one value.** The **planner** (the part of the database that chooses how to run a query) prefers to scan when a match returns a large share of the table. For the rare value, a **partial index** helps: `CREATE INDEX ... ON orders (customer_id) WHERE status = 'OPEN'` stays small and fast.
-- **Too many indexes.** Every index must be updated on every insert, update and delete, and takes disk space. A table with 15 indexes writes much slower than one with 3. In PostgreSQL, `SELECT relname, indexrelname, idx_scan FROM pg_stat_user_indexes WHERE idx_scan = 0;` lists indexes never used since the statistics were last reset. Check replicas and the reset date before you drop any. Never drop an index that backs a primary key or unique constraint, even if it shows no scans, because it enforces a rule.
-- **Creating an index the unsafe way.** A plain `CREATE INDEX` on a big, busy table blocks writes for the whole build. Use `CONCURRENTLY` or your database's online option.
-- **A failed concurrent build.** `CONCURRENTLY` can fail and leave an `INVALID` index behind. Drop it with `DROP INDEX CONCURRENTLY` and try again.
-- **Migration tools.** Many tools run each migration inside a transaction, which makes `CONCURRENTLY` fail. Configure the migration to run outside one.
-- **Wrong column order.** An index on `(status, customer_id)` usually does not help a query that only filters on `customer_id`.
+An index is not free, and it is not always used. These three cause the most surprises.
+
+**1. Creating the index the unsafe way.** The fix is one command, so people run it on the live database. On a small table that is fine. On a big, busy one, a plain `CREATE INDEX` locks the table against writes until the build ends. Reads still work, but every insert, update and delete waits. If the build takes 5 minutes (illustrative), your orders page loads but nobody can place an order, and waiting requests pile up behind the lock.
+
+Use `CREATE INDEX CONCURRENTLY` in PostgreSQL, or your database's online option. It builds the index while writes continue.
+
+It has its own trap. If it fails, for example from a deadlock or a duplicate value in a unique index, it leaves an **invalid** index behind. The planner ignores an invalid index, but every write still has to update it. So you pay the cost and get no speed-up. In `psql`, `\d orders` marks it `INVALID`. The PostgreSQL docs recommend dropping it and trying again. `DROP INDEX CONCURRENTLY` drops it without blocking writes. Many migration tools run each migration inside a transaction, and `CONCURRENTLY` cannot run inside one, so set the migration to run outside a transaction.
+
+**2. Wrong column order.** You have a query that filters only on `customer_id`. A colleague builds the index as `(status, customer_id)`, because both columns appear in other queries. It looks fine: `customer_id` is in the index.
+
+But an index is sorted by its first column, then by the second inside each group. Say `status` has 3 values. This index has three groups, and customer 42's entries are spread across all three. The database has no single place to jump to. It usually ignores the index and scans the table, so the page stays slow.
+
+Put the column you filter on alone first: `(customer_id, status)`. Now all of customer 42's entries sit together, and a query on `customer_id` alone, or on both columns, can use it. A query on `status` alone then needs its own index. Check each new index with `EXPLAIN` before you trust it.
+
+**3. An index on a column where most rows share one value.** Take a `status` column where 95% of 10 million orders are `DONE` (illustrative). Querying `status = 'DONE'` matches 9.5 million rows. Using the index means 9.5 million lookups, each followed by a read of the table. Reading the table once from start to end is cheaper, so the **planner** (the part of the database that chooses how to run a query) scans anyway. The index is never used, but it slows every write and uses disk.
+
+The rare value is different. If only 1% of orders are `OPEN`, an index helps a lot for those. A **partial index** covers only those rows, so it stays small:
+
+```sql
+CREATE INDEX idx_orders_open
+    ON orders (customer_id) WHERE status = 'OPEN';
+```
+
+The query must include `status = 'OPEN'`, or the database cannot use it.
+
+Smaller pitfalls:
+
+- **Too many indexes.** Every index must be updated on every insert, update and delete, and takes disk space. In PostgreSQL, `SELECT relname, indexrelname, idx_scan FROM pg_stat_user_indexes WHERE idx_scan = 0;` lists indexes never used since the statistics were last reset. Check replicas and the reset date before you drop any. Never drop an index that backs a primary key or unique constraint, even if it shows no scans, because it enforces a rule.
 - **The planner ignores it.** On small tables, or when most rows match, scanning is genuinely cheaper. Stale statistics can also mislead it. Check with `EXPLAIN`, never assume.
 - **`SELECT *`.** Asking for every column forces a trip to the table for each row. Selecting only indexed columns can let the database answer from the index alone, called an **index-only scan**. PostgreSQL also needs a recent `VACUUM` for this to work.
 

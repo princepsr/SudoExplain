@@ -116,10 +116,21 @@ You can also stop the problem at its source. In nginx, `keepalive_timeout` in th
 
 ## When the fix goes wrong
 
-- **Raising the wrong timeout.** In nginx, `proxy_read_timeout` limits how long to wait for a response, and the server-level `keepalive_timeout` governs the user side. Neither controls how long the app keeps an idle connection.
+Each fix can fail quietly. These three are the ones most worth knowing.
+
+**1. Raising the wrong timeout.** nginx has many timeouts, and their names sound alike. A common move is to raise `proxy_read_timeout`, because it looks related. It is not. That setting is how long nginx waits for the app to send a response, and it defaults to 60 seconds. The server-level `keepalive_timeout` is how long nginx keeps an idle connection to the user's browser. Neither one says how long the *app* keeps an idle connection, and the app's timer is the one that wins the race in Figure 1.
+
+So you can raise both to 300 seconds and the 502s continue at the same rate. The settings that matter are the app's own idle timeout and the `keepalive_timeout` inside the `upstream` block. After any change, watch the "prematurely closed" lines in the error log. If they do not drop, you changed the wrong setting.
+
+**2. Retrying non-idempotent requests.** Writes fail too, so it is tempting to switch on `non_idempotent` and let nginx retry a `POST` as well. The trouble is that nginx cannot tell *when* a connection broke. Say a customer pays 20 dollars. The app charges the card, but the answer is lost or comes too late, so nginx sees an error or a timeout. It sends the same `POST` again, and the card is charged twice: 2 x 20 = 40 dollars.
+
+Keep the guard on. If writes must be retried, make them safe first with an **idempotency key**. This is a unique value the client sends with each request. The server saves the result under that key, and a repeat with the same key gets the saved result instead of a second charge. The [idempotency key post](/posts/idempotency-key-double-charge/) explains it.
+
+**3. A margin of zero.** If both timeouts are 60 seconds, you might think the race is gone. It is not. Each side starts its own timer at a slightly different moment, because the last bytes need time to cross the network. The app's timer may fire at 60.000 seconds and the proxy's at 60.003. Between those two moments the proxy can still send a request down a line the app has just closed. That is the same race, only rarer, so it is harder to notice. Leave a real gap, such as 5 seconds, which is far larger than any network delay inside your system.
+
+Smaller traps:
+
 - **Fixing one layer out of three.** A user connects to a load balancer, which talks to nginx, which talks to the app. Every hop has its own pair of timers. Check each.
-- **Retrying non-idempotent requests.** Retrying a `POST` can charge a card twice. If you must, add an idempotency key, as the [idempotency key post](/posts/idempotency-key-double-charge/) explains.
-- **A margin of zero.** Setting both timeouts to 60 seconds recreates the race. Leave a gap, such as 5 seconds.
 - **Assuming defaults.** Containers, frameworks and cloud services change them. Read the effective value.
 - **Blaming the app.** The app did nothing wrong. Its logs are quiet because it closed a connection with no request on it.
 

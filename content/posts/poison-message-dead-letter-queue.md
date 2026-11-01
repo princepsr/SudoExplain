@@ -153,9 +153,20 @@ A DLQ is only a holding area. To make it a safety net:
 
 ## When the fix goes wrong
 
-- **A DLQ nobody watches.** Messages sit there for weeks, and the business data in them is effectively lost. An unwatched DLQ moves the problem somewhere quieter.
-- **Replaying before fixing.** Moving messages back with the bug still in place just recreates the loop. Fix first, then replay.
-- **Sleeping in the handler.** Retrying by pausing the consumer thread for long stretches can exceed the broker's limits. In Kafka, if processing takes longer than `max.poll.interval.ms` (five minutes by default), the consumer is considered dead and the group **rebalances**, handing its partitions to others, which causes duplicates. Use non-blocking retry topics for long delays. Spring for Kafka offers `@RetryableTopic` for this.
+The first three are the ones that bring the problem back.
+
+**1. A DLQ nobody watches.** Once the DLQ exists, it feels like the problem is solved. But a DLQ is a queue, and queues can have a **retention period**: how long the broker keeps a message before it deletes it. If nobody looks, the messages age out and the business data in them is gone, with no error.
+
+AWS gives an example for SQS standard queues. A message spends 1 day in the source queue before it moves to the DLQ. The DLQ keeps messages for 4 days, counted from the original send time, so the message is deleted after 3 more days. Alert when the DLQ is not empty, give it a longer retention than the source queue, and make someone responsible for reading it.
+
+**2. Replaying before fixing.** After an incident the natural step is to move every message from the DLQ back to the main queue. If the bug is still in the code, each message fails again, runs through all its retries, and lands in the DLQ again. You have rebuilt the loop, now on a bigger pile. Fix and deploy first. Replay a few messages and watch them succeed. Then replay the rest.
+
+**3. Sleeping in the handler.** To wait between retries, some code simply pauses the thread (`Thread.sleep`). In Kafka, the consumer must call `poll()` regularly to show it is alive. If it does not within `max.poll.interval.ms`, which is 5 minutes by default, Kafka decides the consumer has failed. The group then does a **rebalance**: it takes the partitions away and gives them to other consumers.
+
+Say the handler waits 1 minute, then 2, then 4 between retries. After the third wait it has paused 1 + 2 + 4 = 7 minutes, more than 5. The message is handed to another consumer and processed again, which causes duplicates. Instead, use non-blocking retries. The failed message goes to a retry topic and the consumer carries on with the next one. Spring for Kafka offers `@RetryableTopic` for this.
+
+Shorter ones:
+
 - **Retrying everything.** Treating permanent errors as temporary only delays reaching the DLQ and slows the queue.
 - **Losing order.** A DLQ breaks strict ordering for that message. If order is essential, the consumer needs a different strategy, and some systems prefer to stop and alert.
 - **No idempotency.** At-least-once delivery means a message can legitimately arrive twice, so handlers must tolerate duplicates, as in [the double charge post](/posts/idempotency-key-double-charge/).

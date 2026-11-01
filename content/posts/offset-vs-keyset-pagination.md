@@ -136,10 +136,25 @@ Keyset pagination is not free:
 
 ## When the fix goes wrong
 
-- **No tie-breaker.** Sorting by `created_at` alone, with `WHERE created_at < :last`, **skips** every other row that shares the last timestamp. Always add the unique `id`.
-- **A cursor that loses precision.** If the cursor stores milliseconds but the column stores microseconds, rows that fall in between are skipped. Encode the exact value.
+These three skip rows without any error, so they are easy to miss.
+
+**1. No tie-breaker.** A first try at keyset pagination sorts by `created_at` alone and asks for rows `WHERE created_at < :last`. It looks right, because "older than the last one I saw" sounds complete. But many rows can share one timestamp.
+
+Take 5 posts, two per page. Post 5 is at 12:00:09, posts 4, 3 and 2 are all at 12:00:05, and post 1 is at 12:00:01. The database may order tied rows any way it likes, so page 1 happens to be post 5 and post 4. The cursor is 12:00:05. Page 2 asks for rows older than 12:00:05, so it returns post 1. Posts 3 and 2 are never shown, because they are not older than 12:00:05, they are equal to it.
+
+Add the unique `id` to both the `ORDER BY` and the cursor, as in the Fix section. The cursor is then (12:00:05, post 4), and page 2 starts with post 3, then post 2.
+
+**2. A cursor that loses precision.** The cursor is just text, so it is easy to cut it short. Say PostgreSQL stores `created_at` down to the microsecond, which is a millionth of a second, but your code keeps only milliseconds, a thousandth.
+
+Post A is at 12:00:05.123456 and post B, older, is at 12:00:05.123100. Page 1 ends with A, and the cursor is cut to 12:00:05.123. Page 2 asks for rows before 12:00:05.123, and B is at .123100, which is **after** .123000. So B is skipped. Keep the full value in the cursor. In Java, `Instant.toString()` does this, as in the code above.
+
+**3. Nullable sort columns.** Suppose you sort by `last_login`, and some users have never logged in, so the value is `NULL`. In SQL, comparing anything with `NULL` gives "unknown", not true, and a `WHERE` keeps only rows where the test is true. So after page 1, rows with `NULL` are never returned. A cursor taken from a `NULL` row returns nothing at all.
+
+Sort by a column that is `NOT NULL`, such as the creation time, or give the column a default value. If you must keep `NULL`, handle it with its own condition in the `WHERE`.
+
+Shorter ones:
+
 - **Sorting by something that changes.** If you page by `updated_at` and rows are updated while someone reads, a row can move from a page you already read to one you have not, or vice versa. Prefer an immutable key such as creation time or ID.
-- **Nullable sort columns.** A comparison with `NULL` is never true, so once you page past the first request, rows with a `NULL` sort value are never returned, and a cursor taken from a `NULL` row returns nothing. Sort by a `NOT NULL` column, or handle `NULL` explicitly.
 - **An index that does not match the `ORDER BY`.** The query still works, but the database sorts everything on each page, and you have lost the speed advantage.
 - **A trusted cursor.** If the cursor is plain data that clients edit, they can request odd positions. That is usually harmless, but validate the values and consider signing the cursor.
 - **Mixed sort directions.** `ORDER BY a ASC, b DESC` cannot use the row comparison above, on any database, because a row comparison applies one direction to all columns. Expand it: `WHERE a > :a OR (a = :a AND b < :b)`.

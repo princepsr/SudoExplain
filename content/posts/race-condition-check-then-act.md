@@ -182,10 +182,27 @@ The database serializes these steps for you, and correctness no longer depends o
 
 ## When the fix goes wrong
 
-- **`synchronized` across servers.** It guards one process only. With three servers, three requests can all enter their own "locked" section at once.
-- **Slow work inside a lock.** Calling a remote service while holding a lock makes every other thread wait. Lock only the check and the update, as briefly as you can.
+These are the pitfalls that catch people most often. The first two look like fixes but are not.
+
+**1. Using `synchronized` across servers.** A coupon may be used once, and you wrap the check and the update in `synchronized`. On your laptop, with one process, it works.
+
+In production you run three servers. A lock made by `synchronized` lives in the memory of one process. Server B cannot see the lock that server A holds, and each server has its own. So two requests, one on each server, can both read "coupon unused" at the same moment, and both apply the discount. Each server obeyed its own lock, and the coupon was still used twice.
+
+Move the check to a place that all servers share: the database. For example, run `UPDATE coupons SET used = true WHERE id = ? AND used = false` and look at how many rows changed. The database does this as one step, so exactly one request sees "1 row changed" and wins. The other sees "0 rows" and knows it lost. This is Fix 2 above.
+
+**2. Using `volatile` as a cure.** `volatile` makes sure that when one thread writes a value, other threads see the new value, not an old copy. That is called **visibility**. It sounds like it solves races, but it does not.
+
+`count++` is really three steps: read the number, add 1, write it back. Say `count` is 5. Two threads both read 5, both add 1, and both write 6. Two increments happened, and the count went up by only 1. `volatile` did its job, since both threads saw a fresh value, yet the steps still overlapped.
+
+Use `AtomicInteger.incrementAndGet()`, or a lock around the whole sequence. Keep `volatile` for simple cases, such as a `stopped` flag that one thread sets and others only read.
+
+**3. Slow work inside a lock.** Only one thread can hold a lock at a time, and the others wait in line. Say 50 requests arrive together, and each calls a payment service for 200 ms while holding the lock. The last request waits 50 × 0.2 = 10 seconds.
+
+Lock only the quick check and update. If you need a slow call, first mark the item as reserved inside the lock, then make the call outside it, and undo the reservation if the call fails. That way the check and the act stay together, and the line stays short.
+
+The smaller pitfalls, in short:
+
 - **Slow or recursive work in `computeIfAbsent`.** The map locks part of itself while your function runs. A slow function blocks others, and a function that modifies the same map can throw an exception or deadlock.
-- **`volatile` as a cure.** It makes a single read or write visible to other threads, but it does not make a read-then-write atomic. `volatile int count; count++` is still racy.
 - **"It hasn't happened in months."** A race that needs microsecond timing may wait for a traffic spike. Absence of failures is not proof of safety.
 
 ## Which should you use?

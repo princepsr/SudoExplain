@@ -145,8 +145,22 @@ For anything involving a person, use optimistic locking. If you want to warn peo
 
 ## When the fix goes wrong
 
-- **A code path that skips the version.** A batch job or a raw SQL `UPDATE` that does not include `version` can overwrite changes with no check. Every writer must follow the rule, or the protection has holes.
-- **Retrying with stale data.** When a version conflict happens, **do not** simply re-run the same save. Reload the record, reapply the change on the fresh data, then save, or ask the user.
+The first two are the ones that quietly bring the bug back.
+
+**1. A code path that skips the version.** You add `@Version` to the entity and think the table is safe. But the check only works for writers that use it. A nightly batch job might run a plain `UPDATE customers SET phone = '333' WHERE id = 7`, with no version in it. That statement is allowed, and it leaves `version` unchanged.
+
+Take the record at version 3, phone 111. An agent opens it. The batch job then sets the phone to 333, and the version stays 3. The agent saves a new name, based on version 3. The database sees a match and accepts the save, which carries phone 111 back in. The job's change is lost, with no error. Both halves of the rule were broken: the job ignored the check, and it did not raise the version.
+
+So every writer must follow the rule: raise the version on every change (`version = version + 1`), and add `AND version = ...` when the change is based on data that was read earlier. Search for raw SQL and batch jobs that touch the same table.
+
+**2. Retrying with stale data.** When a save fails with a version conflict, the easy fix is a retry: catch the exception, reload the record to get the new version, and save again.
+
+Look at what happens. Agent A saved phone 222, so the record is at version 4. Agent B's form still holds phone 111 and the new name Anna, based on version 3. B's save fails. The retry reloads version 4, copies **all** of the form's fields onto it, and saves. The version now matches, so it succeeds, and phone 111 overwrites A's 222. The lost update is back, and the version check was the thing that let it through.
+
+A retry is safe only if you re-apply what the user **meant to change** on the fresh data. Here that is only the name. Reload, apply the changed fields, and save. If both people changed the same field, or you cannot tell, show the user the new values and let them decide.
+
+Shorter ones:
+
 - **Swallowing the exception.** Catching `OptimisticLockException` and logging it, then returning success, tells the user their change saved when it did not.
 - **A bad user experience.** "Error 412" with no explanation is useless. Say what happened: "Someone else changed this record. Reload to see their changes."
 - **Counters updated by read-modify-write.** Optimistic locking will detect these conflicts but make busy counters fail constantly. Use an atomic `UPDATE ... SET n = n + 1` instead.

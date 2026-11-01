@@ -162,12 +162,25 @@ metrics:
 
 ## When the fix goes wrong
 
+Autoscaling can add pods and still make things worse. These three are the easiest to miss.
+
+**1. The database becomes the bottleneck.** More pods looks like more room. But every pod brings its own pool of database connections (a pool is a fixed set of connections that the pod keeps open and reuses). Say each pod has 20. Four pods use 4 x 20 = 80 connections, which fits under a database limit of 100. Now the autoscaler jumps to 10 pods, and 10 x 20 = 200 connections are wanted. The database refuses the extra ones, and the new pods start failing too.
+
+Work backwards from the database instead. Keep room for admin tools, say 20, which leaves 80. With `maxReplicas` at 10, each pod can have 80 / 10 = 8 connections. Set the pool size and `maxReplicas` together. [The connection pool post](/posts/connection-pool-exhausted/) shows this sum in more detail.
+
+**2. Flapping.** Flapping means the autoscaler keeps adding and removing pods in a loop. Say traffic comes in waves 4 minutes apart. Each wave needs 10 pods, and between waves 4 are enough. If you shorten the scale-down window to 0 (the `behavior.scaleDown.stabilizationWindowSeconds` setting), the HPA removes pods soon after each wave. The next wave then finds 4 pods, and the whole delay chain starts again, 105 seconds or more in the timeline above. Users get the slow start every 4 minutes.
+
+With the default 300-second window, the HPA uses the highest recommendation from the last 300 seconds. The waves are only 240 seconds apart, so it never sees a quiet window and keeps 10 pods. You pay for 6 extra pods for a few minutes, which is cheaper than the errors. Make the window longer than the gap between waves.
+
+**3. Missing CPU requests.** A CPU request is the amount of CPU a container asks Kubernetes to reserve for it. "Percent of CPU" in the HPA means percent of that request. If a container has no request, the Kubernetes documentation says utilization is not defined and the autoscaler takes no action for that metric. The docs say this applies if *some* containers in the pod lack a request, so a sidecar (a helper container in the same pod) can switch off scaling for the whole pod.
+
+Nothing fails loudly. The pod count stays at 4 through the whole spike. The target column in `kubectl get hpa` usually shows `<unknown>`, which is the clue. Set a CPU request on every container in the pod.
+
+Smaller traps:
+
 - **A metric that stays flat until too late.** If CPU does not move until the app is already overloaded, scaling on it is scaling on the damage.
-- **Flapping.** If scale-down is too eager, instances are removed just before the next wave, then added again. Keep the default 300-second stabilization window or lengthen it.
 - **New pods that never become ready.** A pod that fails its readiness probe adds no capacity, yet you still pay for it. Test your startup under load.
-- **The database becomes the bottleneck.** Ten pods with 20 connections each need 200 database connections. If the database allows 100, more pods make things worse. See [the connection pool post](/posts/connection-pool-exhausted/).
 - **A max replica count that is too low.** The HPA stops at `maxReplicas`, however high the load.
-- **Missing CPU requests.** The Kubernetes documentation says that if a container has no CPU request, the HPA takes no action on that metric.
 
 ## Which should you use?
 

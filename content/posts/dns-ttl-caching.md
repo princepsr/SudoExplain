@@ -146,11 +146,28 @@ The cost: very low values increase lookups, and the JDK notes that changing the 
 
 ## When the fix goes wrong
 
-- **Lowering the TTL too late.** If you lower it an hour before a change, caches that fetched the 24-hour value are not affected.
-- **Forgetting to raise it again.** A 60-second TTL forever means more load and more dependence on your DNS provider.
-- **Believing DNS failover is instant.** Detection time plus TTL plus pooled connections add up to minutes, not seconds.
+Most of these are small. Three of them cause real outages, so they get more space.
+
+**1. Lowering the TTL too late.** The plan looks right: drop the TTL to 60 seconds, then change the record. But a cache only learns the new TTL when it next asks. Until then it keeps the old answer for the old time.
+
+Say the TTL is 86,400 seconds (24 hours). A resolver fetched the record at 09:00 on Thursday, so it may keep it until 09:00 on Friday. You lower the TTL to 60 at 13:00 and change the record at 14:00. That resolver has not asked again, so it still serves the old address. Its users stay on the old server for 19 hours, from 14:00 to 09:00 the next day.
+
+**What to do instead.** Lower the TTL at least one full old TTL before the change. Here that means by 14:00 on Thursday for a change at 14:00 on Friday. By then every cache has asked again at least once, and each one holds the 60-second value.
+
+**2. Believing DNS failover is instant.** DNS failover means a provider checks your servers and swaps the record when one fails. People expect users to move within seconds. The delays add up.
+
+Take these numbers (assumed, check your own provider). The health check runs every 30 seconds and needs 3 failures in a row. That is 3 × 30 = 90 seconds before the record changes. Then caches keep the old record for up to the TTL, say 60 more seconds. That is about 150 seconds so far. On top of that, pooled connections do not look the name up again. A pool keeps trying the dead address until its connections close.
+
+**What to do instead.** Plan for minutes, not seconds. Use a short TTL, give pools a maximum connection lifetime, and for fast failover put a load balancer in front, so clients never need a new address.
+
+**3. Creating the record late.** A resolver also remembers "this name does not exist". If someone looks up `api.example.com` at 11:55, before you create it at 12:00, that "no" is cached. Suppose the zone's negative caching time is 3,600 seconds (assumed). Then that resolver keeps saying "no such name" until 12:55, even though the record exists.
+
+**What to do instead.** Create the record before anyone is told to use it. Test from a resolver that has not seen the name. If a "no" was already cached, you can only wait for it to expire, or ask the resolver's operator to flush it.
+
+The smaller ones:
+
+- **Forgetting to raise the TTL again.** A 60-second TTL forever means more load and more dependence on your DNS provider.
 - **Testing from one machine.** Your own cache can mislead you. Query several resolvers.
-- **Creating the record late.** A negative answer cached before the record existed can hide it.
 - **Ignoring other uses of the name.** Mail servers, allow-lists and certificates may depend on the old address.
 
 ## Which should you use?

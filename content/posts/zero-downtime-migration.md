@@ -155,9 +155,24 @@ Even "instant" changes need a brief exclusive metadata lock. They still queue be
 
 ## When the fix goes wrong
 
-- **A long transaction holds the lock first.** `lock_timeout` makes the migration give up, but it will keep failing until the old transaction ends. Find and end it, or pick a quieter time.
-- **The migration tool wraps everything in one transaction.** Locks taken early stay held until the end. And `CREATE INDEX CONCURRENTLY` cannot run in a transaction at all, so the tool needs an option to run that step outside one.
-- **A backfill that overloads replicas.** Each batch must be replayed on every replica. Large or fast batches push replicas behind, and users then miss their own writes. See [the replica lag post](/posts/read-replica-lag/).
+These fixes protect you only when used with care. Three traps catch people most often.
+
+**1. Retrying `lock_timeout` while an old transaction is still open.** `lock_timeout` makes the migration give up, and the retry loop tries again. That works when the blocker is a 40-second report. It fails when the blocker is a transaction that someone left open, such as a script that started a transaction and then stopped. PostgreSQL shows it as `idle in transaction`. It can stay open for hours.
+
+Each retry then queues for the 3-second timeout, and during those 3 seconds the app stalls, as in Figure 1. Say the loop waits 10 seconds between tries. Each cycle is 3 seconds of stall and 10 seconds of calm, so the app is stalled for 3 out of every 13 seconds, about 23% of the time, and the migration never succeeds.
+
+Find the old transaction with the `pg_stat_activity` query above. Ask its owner to finish it, or end it with `pg_terminate_backend(pid)`, which rolls its work back. Then run the migration. To stop this from happening again, you can set `idle_in_transaction_session_timeout`. Its default is 0, which means off.
+
+**2. A migration tool that wraps everything in one transaction.** A lock taken inside a transaction is held until the transaction ends, according to the PostgreSQL manual. Say one migration file adds a column (a brief strong lock) and then backfills 10 million rows, which takes 10 minutes. The strong lock from the first line is held for all 10 minutes, and the table is frozen. `lock_timeout` does not help, because it limits only the **waiting**, not the holding.
+
+The same wrapping breaks `CREATE INDEX CONCURRENTLY`, which cannot run inside a transaction block. Put each step in its own migration, so each commits and lets go of its locks. For the index step, turn off the tool's transaction wrapping. Most migration tools have a setting for that, so check yours.
+
+**3. A backfill that is too fast for the replicas.** A **replica** is a copy of the database that serves reads. Every batch you write must be replayed on each replica. If you write batches faster than a replica can replay them, it falls behind. Users then save a change and still see the old data, because their read goes to the replica.
+
+Do not pause for a fixed time and hope. Between batches, check how far the replicas are behind. In PostgreSQL, `pg_stat_replication` has a `replay_lag` column for this. If the lag is above your limit, wait. Small batches with a lag check keep the backfill from running ahead of the copies. See [the replica lag post](/posts/read-replica-lag/).
+
+Smaller traps, in short:
+
 - **Skipping the expand step.** Dropping or renaming a column in one release breaks old servers still running mid-deploy.
 - **Forgetting the contract step.** Unused columns and double writes linger for years. Put the cleanup in the backlog.
 - **Never rehearsing.** A migration that takes 20 milliseconds on a laptop can scan a table for minutes in production.

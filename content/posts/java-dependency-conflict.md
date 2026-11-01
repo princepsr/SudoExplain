@@ -175,11 +175,29 @@ If two libraries truly need incompatible versions, you can **shade** one: copy i
 
 ## When the fix goes wrong
 
-- **Excluding too much.** An exclusion on a broad group can remove classes other code needs. Exclude one artifact, then test.
-- **Pinning a version that breaks another library.** Forcing 2.0 fixes `acme-export` and breaks `acme-report`. Run the full test suite after any pin.
-- **Fixing the IDE but not the build.** Verify on the artifact you ship.
+Each fix changes which jars ship, so each fix can break a library that worked before. Three cases need care.
+
+**1. Pinning a version that breaks another library.** The error names `acme-export`, so you pin `acme-text` to 2.0, and `acme-export` works. It looks solved. But `acme-report` was written for 1.0, and 2.0 renamed `shout` to `loud`. Nothing was lost by the build tool. It simply gave `acme-report` a version it was never compiled against. The same kind of error appears, now on a different library (illustrative):
+
+```text
+java.lang.NoSuchMethodError: 'java.lang.String acme.Fmt.shout(java.lang.String)'
+```
+
+This can be worse than the first failure. If only a rare report screen calls `shout`, your tests may never touch it, and you find out in production.
+
+**What to do instead.** Before you pin, read what changed between the two versions, and check whether each library that needs the dependency supports the version you pick. If `acme-report` has a newer release built for 2.0, upgrade it too. After the pin, run tests that actually exercise each library, not just the one you were fixing. If no single version works for both, that is the case for shading (Fix 4).
+
+**2. Excluding too much.** An exclusion removes a jar from one path in the tree, together with everything below it on that path. Suppose you exclude `acme-text` from `acme-report`, hoping the 2.0 copy from `acme-export` will be used. That works while `acme-export` really brings 2.0. Later someone removes `acme-export`, or upgrades it to a release that no longer depends on `acme-text`. Now nothing supplies the library, and `acme-report` fails with `NoClassDefFoundError` the first time it needs it. An exclusion on a whole group (`<artifactId>*</artifactId>`) can remove many jars at once.
+
+**What to do instead.** Exclude one named artifact, never a wildcard. Then make the winner explicit: declare `acme-text` 2.0 in your own project, so it no longer depends on a side effect of another library. Finally, run the dependency tree again and confirm the jar you want is there.
+
+**3. Checking the wrong classpath.** You fix the conflict, the IDE shows the right version, and the tests pass. But the IDE and the test run may resolve jars differently from the release build. Tests add test-scope jars, so a jar that exists only in tests can hide the problem. A fat jar or a web server may also bring its own copies of libraries. The artifact you deploy can still contain the old jar.
+
+**What to do instead.** Check the thing you ship. Run the dependency tree for the production build, unzip the artifact and look at the jars inside, and start it with `-Xlog:class+load` to see which jar each class comes from.
+
+The smaller ones:
+
 - **Silencing the enforcer.** Turning the rule off removes the early warning.
-- **Ignoring test scope.** A jar present only in tests can hide the problem until deploy.
 - **Trusting "latest".** The newest version is not always compatible with everything else.
 
 ## Which should you use?

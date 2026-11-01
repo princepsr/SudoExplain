@@ -171,10 +171,24 @@ Several limits could fire here, and the repeat limit came first, after three cal
 
 ## When the fix goes wrong
 
-- **A step limit so high it protects nothing.** A limit of 1,000 steps barely helps, as the table above shows. Set it near the longest legitimate run.
+Each limit can fail in a quiet way. These are the ones that hurt most.
+
+**1. A step limit so high it protects nothing.** A limit looks like safety: "stop after 1,000 steps, just in case." But a limit only helps if it trips before the damage is done.
+
+Use the same numbers as the cost table (2,000 tokens to start, 500 more per step). A normal run of 10 steps sends 42,500 input tokens in total. A run that reaches 1,000 steps sends 2,000 * 1,000 + 500 * (1,000 * 999 / 2) = 251,750,000 tokens. That is about 5,900 times the cost of a normal run, and the limit has not even tripped yet. The run would also need a context window big enough for the history, so it may fail on its own long before step 1,000.
+
+**What to do instead.** Look at your real runs and find the longest good one. Say it takes 20 steps. Set the limit near 30, and add a cost limit as well, because a cost limit still works if one step is much bigger than the others. When a run hits the limit, treat it as a bug to investigate, not as normal.
+
+**2. Partial side effects when a run is cut off.** A limit stops the loop, but it does not undo what the loop already did. Say the agent must email 5 customers. It sends 3 emails, then hits the step limit at step 7. Now 3 customers know and 2 do not.
+
+If a person or a retry job simply starts the task again, the first 3 customers get a second email. If nobody restarts it, the other 2 never hear anything. Both are wrong, and neither shows up as an error.
+
+**What to do instead.** Write down each completed action as it happens, with an idempotency key (a unique label, so a repeat is recognized and ignored; see Fix 3). A restart then reads the list, skips the 3 finished emails and sends the missing 2. For actions that cannot be repeated or undone, ask a person before they run.
+
+Smaller pitfalls:
+
 - **Retrying with the same arguments.** Retrying an unchanged call after a failure repeats the failure. Change something, or stop.
 - **Letting the model decide its own budget.** The model has no real sense of cost. Enforce limits in your code, outside the model.
-- **Partial side effects when a run is cut off.** A run stopped after step 7 may have sent 3 of 5 emails. Record each completed action, and design tools so a restart can safely continue or undo.
 - **Huge tool results.** Truncate or summarize results before adding them to the history.
 - **A silent stop.** If the run just ends, the user thinks it worked. Always report why it stopped.
 

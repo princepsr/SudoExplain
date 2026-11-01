@@ -170,11 +170,26 @@ The bulkhead must **reject** calls when its slots are full. If the request threa
 
 ## When the fix goes wrong
 
+Three pitfalls look harmless in a code review but cause trouble in production.
+
+**1. A timeout below normal latency.** A short timeout feels safe, because it protects your threads. But a timeout must sit above what a *healthy* call needs. The 99th percentile is the time that 99 of 100 requests beat. Say B's usual 99th percentile is 800 ms and you set the timeout to 500 ms. By definition, at least 1 healthy request in 100 takes longer than 800 ms, so at least 1 in 100 now fails even though nothing is wrong. At 50 requests per second, that is at least one failure every 2 seconds.
+
+It gets worse with retries. Each failed call is sent again, so B gets more load. B also does not know that A gave up, so it keeps working on the abandoned request. You have added load to a service that was fine.
+
+**What to do instead:** measure B's real latency first, then set the timeout above its 99th percentile, for example 1 to 2 seconds for an 800 ms 99th percentile. Check it again when B changes. For genuinely slow answers, let the breaker count slow calls, as in Defense 3.
+
+**2. Breaker wrapped outside the retry.** Suppose each logical call is tried up to 3 times, and the breaker opens when at least 10 calls have been seen and half of them fail (the settings above). B is down. If the breaker sits *outside* the retry, it only sees the final result. Each logical call counts as one failure, but sends 3 real requests to B. To reach 10 calls, you send 10 x 3 = 30 requests at a service that is already down.
+
+**What to do instead:** put the retry on the outside and the breaker inside it, next to the call, so the breaker counts every attempt. It then opens after 10 real calls, not 30, and the remaining retries get a quick refusal instead of another request. In Resilience4j's Spring Boot annotations, the default order already puts the retry outside the circuit breaker, but check it if you wrap calls by hand.
+
+**3. A fallback that calls something else slow.** A fallback is the cheap answer you give when the breaker is open. Say the fallback for "recommendations" runs a "best sellers" query on your main database, and it takes 0.3 seconds. At 50 requests per second, that is 50 x 0.3 = 15 database connections in use all the time (the same sum as in [the connection pool post](/posts/connection-pool-exhausted/)). If the pool has 10, checkout now cannot get a connection. The breaker saved your threads and drained the database.
+
+**What to do instead:** make the fallback do almost no work. Return a list that was saved earlier and refreshed in the background, or an empty list, so the page still loads without recommendations.
+
+Smaller traps:
+
 - **A timeout that is too long.** A 30-second timeout is almost no protection. By the time it fires, the pool is already empty.
-- **A timeout below normal latency.** If B's usual 99th-percentile response is 800 ms and you set 500 ms, healthy requests fail, and retries follow. The 99th percentile is the time that 99 of 100 requests beat.
 - **A breaker that flaps.** Thresholds that are too sensitive open and close it constantly. Require a minimum number of calls before judging the failure rate.
-- **A fallback that calls something else slow.** If the fallback for "recommendations" queries a heavy database, you have moved the problem. Fallbacks should be cheap: a cached or static answer.
-- **Breaker wrapped outside the retry.** If the breaker only sees the final result after three attempts, it counts one failure for three real calls. Put the breaker inside the retry so it counts every attempt.
 
 ## Which should you use?
 

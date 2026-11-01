@@ -154,11 +154,25 @@ Be careful about sending the email inside that transaction. It holds row locks d
 
 ## When the fix goes wrong
 
-- **A lock that expires before the job ends.** If the lock lasts 10 minutes and the job takes 15, a second instance starts while the first is still running. Set the maximum above your slowest run, and still make the work idempotent.
+A lock is only as good as its timing. These are the two ways it most often lets a second run in.
+
+**1. A lock that expires before the job ends.** A lock must expire, or a crashed instance would block the job forever. So you give it a time limit, such as 10 minutes. It looks safe, because normal runs take 3 minutes.
+
+Then one night the table is bigger and the job takes 15 minutes. At minute 10 the lock expires, while the first instance is still working. A second instance takes the lock and starts the job. For the last 5 minutes, both are running, and every customer can get two emails. The ShedLock documentation warns about exactly this: if a task runs longer than `lockAtMostFor`, it can be executed more than once.
+
+**What to do instead.** Set the time limit well above your slowest real run. Then also make the work idempotent (running it twice has the same effect as once), as in Fix 3, because a long enough run can always outlast any limit. Log how long each run takes, so you see it growing before it passes the limit.
+
+**2. Comparing local clocks.** The lock stores a time, `locked_until`. Each instance decides whether the lock is free by comparing that time with its own clock. Clocks on different servers are never exactly equal.
+
+Say the lock lasts 1 minute. Server A takes it at 02:00:00 by its clock, so `locked_until` is 02:01:00. Server B's clock is 90 seconds fast. At that same moment it reads 02:01:30, which is later than 02:01:00, so B decides the lock has expired and runs the job too. With a 10-minute lock, the clocks would have to differ by more than 10 minutes, so this hurts most with short locks and badly set clocks. But nobody notices it until it happens.
+
+**What to do instead.** Let the database be the only clock. In the SQL above, `now()` runs on the database server, so every instance is compared against the same time. The JDBC lock provider in ShedLock has an option to use the database time too.
+
+Smaller pitfalls:
+
 - **A lock that is never released.** With a very long `lockAtMostFor`, a crash can block the job for hours. Choose a value that is long enough for a normal run and no longer.
-- **Comparing local clocks.** If servers compare `locked_until` against their own clocks and the clocks differ, two can both think the lock is free. Use the **database's** time (`now()`).
 - **A single scheduler instance that dies.** One copy means no duplicates but also no backup. Make sure something restarts it, and alert if the job is missed.
-- **Trusting the external scheduler fully.** Kubernetes warns that a `CronJob` can occasionally start two runs, or miss one. Idempotent work and a missed-run alert are still needed.
+- **Trusting the external scheduler fully.** The Kubernetes documentation says a `CronJob` creates a Job about once per scheduled time, and in some cases two Jobs are created, or none. Idempotent work and a missed-run alert are still needed.
 
 ## Which should you use?
 

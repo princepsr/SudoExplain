@@ -126,10 +126,23 @@ The cost is real memory on the node, so check that you are not just hiding a lea
 
 ## When the fix goes wrong
 
-- **Setting `-Xmx` equal to the container limit.** The heap alone can then fill the whole budget before any other memory is counted. Always leave headroom.
-- **Raising `MaxRAMPercentage` to "use the memory we paid for".** The same trap, stated as a percentage. Values above about 75 leave little room on small containers.
-- **Forgetting that sidecars use memory too.** A helper container in the same pod has its own limit and uses node memory. Check which container was killed, because `kubectl describe pod` lists each one.
-- **Reading only the heap graph.** Add container memory (the working set the orchestrator reports) to the same dashboard.
+Most of these come from sizing the heap against the wrong number. The first two are the ones that hurt most.
+
+**1. Giving the heap the whole limit.** The thinking: "The container has 1024 MB, so let Java use 1024 MB." Teams do it with `-Xmx1024m`, or with a high `MaxRAMPercentage` such as 90.
+
+The container limit counts the heap *and* everything else, as the sum above showed. Even the idle test program in the NMT output used about 96 MB outside its heap (about 224 MB in total, minus 128 MB of heap). With 90%, the heap may grow to about 922 MB (1024 × 0.9, rounded), which leaves about 102 MB for everything else. That is barely what an idle program needs. A real service has more threads, buffers and compiled code, so it goes over. And a heap that is only 60% full today can be 100% full on a busy day.
+
+**What to do instead.** Pick a percentage that leaves room, and check it with NMT. For a 1024 MB limit, 60% leaves about 410 MB. If NMT shows the rest needs less, raise it a little. If it needs more, lower it or raise the limit.
+
+**2. Watching only the heap graph.** The heap graph is the one most teams already have, and in this incident it looked calm. But the kernel does not count the heap alone. It counts the whole process.
+
+In the example above, the heap graph would show 768 MB, a comfortable 75% of the limit, while the real total was 1288 MB. Nothing on that graph can warn you.
+
+**What to do instead.** Put the container's memory usage on the same dashboard, as the orchestrator reports it, and draw the limit as a line. While you investigate, graph the NMT categories too. You will see which part moves toward the limit before the kill arrives.
+
+Smaller traps:
+
+- **Forgetting sidecars.** A helper container in the same pod uses memory too. `kubectl describe pod` lists each container, so check which one was killed.
 - **Leaving NMT on forever.** It adds overhead. Turn it on to investigate, then off.
 - **Fixing the wrong layer.** A growing heap needs [the memory leak post](/posts/java-memory-leak/). A restart loop after the kill is covered by [the CrashLoopBackOff post](/posts/crashloopbackoff/).
 

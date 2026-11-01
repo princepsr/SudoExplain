@@ -152,11 +152,33 @@ Escaping means adding a backslash or doubled quote before special characters. OW
 
 ## When the fix goes wrong
 
-- **Second-order injection.** The app stores `bob'--` safely with a parameterized `INSERT`. Later, another part of the code reads that name from the database and glues it into a query. Stored data is not trusted data.
-- **`LIKE` wildcards.** Parameters stop injection, but a user who types `%` still matches everything in a `LIKE` search. Escape `%` and `_` in the search term and declare an `ESCAPE` character.
+Parameters fix the query they are used in. They do not fix queries you forgot, and they do not fix everything that touches the database. These three are the easiest to miss.
+
+**1. Second-order injection.** You switched the sign-up code to parameters, so it is safe. A user registers with the name `admin'--`. The `INSERT` stores that text exactly as typed, with no harm done. Everyone relaxes.
+
+Weeks later, another part of the app, such as "change my password", reads the name from the database and glues it into a query, because "it is our own data":
+
+```sql
+UPDATE users SET password_hash = 'new-hash'
+WHERE name = 'admin'--'
+```
+
+In many databases, `--` starts a comment, so the rest of the line is ignored. The query now changes the password of the real `admin`, not of the attacker. The attacker never typed anything harmful into that page. The harm was planted earlier and waited.
+
+**What to do instead.** Stored data is not trusted data. Use parameters every time a value goes into a query, whatever its source: a form, a file, an API, or your own database. Search the code for every query built with `+`, not only the ones that read from the web.
+
+**2. Safe at one layer only.** The application uses a parameterized call, such as `CALL find_user(?)`. The call is safe. But inside the **stored procedure** (code saved in the database), the author builds a new SQL string from the argument and runs it as dynamic SQL. The argument now becomes code, one layer down, and the application's parameters cannot help.
+
+**What to do instead.** Inside the procedure, write the query with the argument as a normal value. If you must build SQL at run time, pass the values as parameters of the dynamic statement too. Databases support this, for example PostgreSQL's `EXECUTE ... USING` and SQL Server's `sp_executesql`.
+
+**3. `LIKE` wildcards.** In a search box you write `WHERE name LIKE ?`, and bind the typed text plus a `%` at the end. This is safe from injection. But `%` and `_` are special inside `LIKE`: `%` matches any text and `_` matches one character. A user who types just `%` makes the pattern `%%`, which matches every row. On a "find a customer" page, that lists the whole customer table. It can also be slow, because the database has to scan many rows.
+
+**What to do instead.** Before you bind the term, escape `%`, `_` and the escape character itself, so they are treated as plain text. Then name the escape character in the query (here `!`, so escape `!`, `%` and `_` by putting `!` before each), as in `LIKE ? ESCAPE '!'`. The default escape character differs between databases, so declare it, and keep a limit on how many rows a search can return.
+
+Smaller pitfalls:
+
 - **Client-side validation only.** A browser check is a convenience. An attacker sends requests directly, so the server must be safe on its own.
 - **Verbose errors.** A page that prints the failed query or a stack trace teaches attackers your table names. Log details on the server, and show users a generic message.
-- **Safe at one layer only.** A parameterized query is safe, but a stored procedure that builds dynamic SQL inside from its arguments is not.
 - **Validation as the only defense.** Rejecting the word `DROP` blocks the harmless and misses the clever. Use it as an extra layer.
 
 ## Which should you use?

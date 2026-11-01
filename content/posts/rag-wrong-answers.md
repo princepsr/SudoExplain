@@ -113,13 +113,32 @@ Set a minimum relevance score. If nothing passes, return "I could not find this 
 
 ## When the fix goes wrong
 
+Most of these are small. Three are easy to miss, because everything looks fine while they hurt you.
+
+**1. Changing the embedding model.** An **embedding** is a list of numbers that stands for the meaning of a piece of text. Search works by comparing the numbers of the question with the numbers of each chunk. A better model comes out, and you start using it, maybe only for new documents.
+
+The trouble is that each model builds its own number space. Position 7 in one model's list means something different from position 7 in another's. Numbers from two models cannot be compared. If the lists have different lengths, the comparison cannot even run. If they happen to match in length, it runs and quietly returns bad matches, with no error to warn you.
+
+A mixed index is just as bad. Say 10,000 old chunks were made by model A and 500 new ones by model B. A question embedded with model B only compares sensibly with the 500.
+
+Instead, build a second index, re-embed **every** chunk with the new model, and run your test set on it. Switch over only if it scores better, then delete the old index. Store the model name next to the vectors, so you always know which is which.
+
+**2. A test set that is too easy.** You wrote 50 test questions by taking a sentence from each document and turning it into a question. The document says "The refund window for annual plans is 30 days", and your question is "What is the refund window for annual plans?" Both share the same words, so almost any search finds it. You score 50 out of 50 and ship.
+
+Real users write "can I get my money back after a year?" There is no shared wording, and retrieval might find the right chunk for only 31 of 50 such questions (illustrative). The perfect score told you nothing.
+
+Build the test set from real logs and support tickets, in the users' own words. For each question, note which chunk holds the answer. Then measure how often that chunk appears in the top 5 results.
+
+**3. Invented citations.** You ask the model to cite its sources, and answers now arrive with "[3]" at the end. That looks trustworthy. But a model can cite a source that was never in the prompt, or attach a real source to a claim it does not support. Say you sent chunks 1 to 5 and the answer cites [7].
+
+Check in code that every cited chunk was really among those you sent. Reject the answer, or retry, if not. This catches made-up sources only. It does not prove a source supports the claim, so show the cited passage next to the answer and let the reader check.
+
+The smaller pitfalls, in short:
+
 - **Bigger chunks.** Large chunks hold more context but blur the meaning, so they match many questions weakly. They also waste prompt space. Embedding models accept a limited input length, and text past it may be cut off, or the call may fail, so check your model's limit.
 - **Too much overlap.** Duplicated text from neighboring chunks fills the top results with near copies of the same passage.
-- **Changing the embedding model.** Vectors from different models cannot be compared. If you switch, you must **re-embed everything**.
 - **A threshold that is too strict.** The bot refuses to answer questions it could have answered. Tune it on your test set.
 - **A reranker that is too slow.** It adds delay to every question. Rerank only the top 30 to 50.
-- **Invented citations.** A model can cite a source that is not in the prompt. Check in code that every cited chunk was actually sent.
-- **A test set that is too easy.** If you wrote the questions from the documents' own wording, retrieval looks perfect. Use questions in **users' words**, taken from real logs.
 - **Summarizing chunks to save space.** Summaries drop the details, such as numbers and exceptions, that people ask about.
 - **Poisoned documents.** Retrieved text can hold hidden instructions. See [the prompt injection post](/posts/prompt-injection/).
 

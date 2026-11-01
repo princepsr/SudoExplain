@@ -139,9 +139,21 @@ If a process holds a deleted file, **restart or signal the process** so it close
 
 ## When the fix goes wrong
 
-- **Deleting a file a process still holds.** The space is not freed. Use `lsof +L1` to see it, then restart the process, or truncate before deleting next time.
+Two of these look like fixes and change nothing, so they come first. The short ones follow.
+
+**1. Deleting a file a process still holds.** The disk is full, you find a 20 GB log, and you run `rm`. You run `df` and it still says 100%. Nothing was freed.
+
+On Linux, a file's name and its data are separate. `rm` removes the name. The data stays on the disk for as long as any process still has the file open. The app has the log open and keeps writing, so the 20 GB stays, and now you cannot see it with `ls` or `du`.
+
+**What to do instead.** Run `sudo lsof +L1`. It lists open files that no longer have a name, and shows which process holds each. Restart that process, or ask it to reopen its logs, and the space comes back. Next time, if you must free space in an emergency without a restart, empty the file instead of deleting it, for example with `truncate -s 0 /var/log/myapp.log`. The process keeps its open file and the space is released at once. This loses the log content, so it is a rescue step, not a routine.
+
+**2. Rotating without telling the process.** Rotation renames `app.log` to `app.log.1` and expects a new `app.log`. But the app does not look up the name on each write. It keeps writing to the file it already opened, and renaming does not change which file that is. So the app writes into `app.log.1`, the new `app.log` stays empty, and the file you meant to cap keeps growing. The rotation looks right in `ls` and the disk still fills.
+
+**What to do instead.** Make the app reopen its log after the rename. In `logrotate`, a `postrotate` script can send the signal the app expects. If the app cannot reopen its log, use `copytruncate`, which copies the file and empties the original, so the app keeps writing to the same file. Its cost is that a few lines can be lost, as the list below says.
+
+Smaller traps:
+
 - **Truncating instead of deleting.** Fast, but it loses data. It is a rescue tool, not a policy.
-- **Rotating without signaling the process.** The app keeps writing to the renamed file. The new file stays empty, and the old one keeps growing. Use `postrotate` to signal it, or `copytruncate`.
 - **`copytruncate` loses lines.** The `logrotate` manual warns that a small time slice between copying and truncating means some data might be lost.
 - **A log loop.** An error handler that logs an error when logging fails can fill a disk fast. Rate-limit repeated messages.
 - **Alerting only on bytes.** An inode-full disk looks healthy in a byte graph.

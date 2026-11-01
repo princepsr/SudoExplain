@@ -142,11 +142,32 @@ The cost: a really dead instance is noticed only after the session timeout, and 
 
 ## When the fix goes wrong
 
-- **Timeouts raised too far.** A `max.poll.interval.ms` of two hours hides a stuck consumer for two hours. Real failures are detected late.
-- **Autoscaling on lag.** Lag rises, so the autoscaler adds consumers, which triggers a rebalance, which raises lag again. [The autoscaling post](/posts/autoscaling-too-late/) explains stabilization windows for the Kubernetes autoscaler. For scaling on lag, add a cooldown and a minimum replica count.
+Each fix has a setting that can be pushed too far. These three do the most harm.
+
+**1. Raising the timeouts too far.** The group keeps losing consumers for being slow, so someone sets `max.poll.interval.ms` to two hours (7,200,000 ms). The rebalances stop, and it looks fixed.
+
+But that limit is also how long Kafka waits before it decides a stuck consumer is gone. If a consumer really hangs, its partitions sit unread until the limit passes. Say those partitions get 100 messages a second (illustrative). Two hours is 7,200 seconds, so the lag grows by 100 × 7,200 = 720,000 messages before anyone else takes over. The slow work is still slow. You only hid it.
+
+**What to do instead.** Keep the limit near its default and make each batch shorter (Fix 1). Raise the session timeout only for short, known pauses.
+
+**2. Autoscaling on lag.** Lag is growing, so an autoscaler adds consumers. It looks logical, but each new consumer joins the group and triggers a rebalance, during which nobody reads. Lag grows faster, so the autoscaler adds more.
+
+There is a second limit. Kafka gives each partition to one consumer in the group. With 6 partitions and 6 consumers, every consumer is busy. Scale to 12, and 6 consumers get nothing and sit idle. You paid for them and caused the rebalances for no gain.
+
+[The autoscaling post](/posts/autoscaling-too-late/) explains stabilization windows for the Kubernetes autoscaler.
+
+**What to do instead.** Never scale above the partition count. Add a cooldown, so the group can settle between changes, and a minimum replica count. First check why lag grows, as the cause may be slow processing and not too few consumers.
+
+**3. Duplicate processing.** After a rebalance, the new owner of a partition starts from the last committed offset, the position Kafka last recorded as done. Work done after that point is read again.
+
+Say a consumer gets a batch of 50 orders, charges 30 customers, and loses the partition before it commits. The next owner reads all 50 again, so 30 customers are charged twice.
+
+**What to do instead.** Make the handler idempotent, which means safe to run twice. For example, save the order id when a charge succeeds, and skip any order whose id is already saved. Then a repeat does nothing.
+
+Smaller traps:
+
 - **One slow message.** A single message that takes ten minutes makes one consumer miss its deadline and pauses everyone. Park such messages in a retry or dead letter topic, as in [the poison message post](/posts/poison-message-dead-letter-queue/).
 - **Mixed assignors.** One old instance without cooperative support keeps the whole group on the eager protocol.
-- **Duplicate processing.** After a rebalance, uncommitted messages are read again. Make handlers idempotent (safe to run twice).
 - **Reused instance IDs.** Two live instances with one `group.instance.id` fence each other out.
 
 ## Which should you use?

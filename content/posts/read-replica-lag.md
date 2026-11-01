@@ -144,11 +144,26 @@ Pair it with a guard against double submission, such as disabling the button unt
 
 ## When the fix goes wrong
 
-- **Sticky routing that never expires.** If "this user reads from the primary" is stored forever, the primary slowly takes all the traffic, and the replicas sit idle. Always give the rule an end.
-- **A window shorter than the lag.** A 2-second window does nothing when lag spikes to 30 seconds. Use position checks, or at least a fallback.
+Three pitfalls matter most, because each one passes testing and fails later in production.
+
+**1. Sticky routing that never expires.** After a user writes, you pin that user to the primary, for example with a flag "use_primary" saved on the user. It fixes the stale read, so it looks done.
+
+The problem is that the flag is never cleared. Every active user writes sooner or later: a login updates "last seen", a profile edit saves a name. After a few weeks most users are pinned. Say 9,000 of 10,000 active users have written at least once (illustrative). Then about 90% of reads go to the primary, and the replicas sit idle. You are back to the load you wanted to avoid, and it looks fine until traffic grows.
+
+Give the rule an end. Save the time of the user's last write, as in Fix 1, and use the primary only while that time is recent.
+
+**2. A window shorter than the lag.** A time window assumes the replica catches up inside it. Say your window is 5 seconds, and normal lag is 0.2 seconds. Then a batch job raises the lag to 30 seconds. A user saves at 12:00:00. The window ends at 12:00:05, so a read at 12:00:06 goes to a replica that is still 30 seconds behind, and the old data appears.
+
+This is the cruel part: the fix works in every test, and fails exactly when the system is under stress. Use the position check from Fix 2, which waits for the real change. Or combine the window with Fix 3, so a replica that is too far behind leaves rotation and reads fall back to the primary.
+
+**3. Reads that cross requests.** One page may run several queries. Say a confirmation page reads the order, then its items. The user saved at time 0, and your window is 5 seconds. The page starts at 4.9 seconds, so the first query goes to the primary. The window ends, and the second query, at 5.1 seconds, goes to a replica that has not caught up. The page shows an order with a total of $50 and an empty list of items.
+
+Decide once, at the start of the request, where it will read, and use that same choice for every query in the request. Do not decide per query.
+
+The smaller pitfalls, in short:
+
 - **Lag spikes you did not plan for.** Large batch writes, schema changes, and long queries on the replica can all raise lag. See [the migration post](/posts/zero-downtime-migration/) for backfills that overload replicas.
 - **Time versus bytes.** A time-based lag number can read zero or look huge on an idle system. A byte-based number does not tell you how many seconds a user waits. Watch both.
-- **Reads that cross requests.** One page may make several reads. If the first goes to the primary and the second to a replica, the page can show a mix of new and old data. Decide per request, not per query.
 - **Caches in front of the database.** A stale cache causes the same symptom as lag. See [the stale caches post](/posts/stale-caches-explained/).
 - **Mistaking lag for a lost update.** Two users saving over each other is a different bug, covered in [the optimistic locking post](/posts/lost-update-optimistic-locking/).
 

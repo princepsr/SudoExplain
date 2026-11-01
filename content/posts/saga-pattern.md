@@ -136,13 +136,29 @@ The data change and the event record then succeed or fail together. The event is
 
 ## When the fix goes wrong
 
-- **A timeout is not a failure.** If a step times out, its result is unknown: the payment may have succeeded while the caller saw an error. Look the result up by idempotency key, or run the compensation, which must be safe even if the step never happened.
-- **A compensation that fails.** If the refund service is down, the saga cannot finish undoing. Retry until it works, alert if it takes too long, and send it to a manual-review queue (often fed from a dead-letter queue, where a message broker puts messages it could not process). A compensation must never be "best effort".
-- **A compensation that is not idempotent.** A retried refund pays twice.
-- **Users seeing the middle.** A saga has no **isolation**: other requests can see half-finished work. Another request can see stock "reserved" for an order that will be cancelled a second later. Show a **pending** state and design the user interface around it.
+A saga adds new ways to fail. These three are the easiest to miss.
+
+**1. A timeout is not a failure.** The saga calls the payment service, waits 3 seconds and gets no answer. It looks like the charge failed, so the saga releases the stock and marks the order `FAILED`. But the payment service was only slow. It charged the card 4 seconds later. Now the customer paid 40 for an order that does not exist, and no error was ever raised.
+
+A **timeout** only means "no answer yet". The real result is unknown. Retrying with a new request is just as bad, because it may charge twice.
+
+**What to do instead.** Treat an unknown result as "maybe done". Retry with the **same** idempotency key, so the payment service returns the first result instead of charging again. Or run the compensation, and write it so it is safe even if the step never happened: a refund looks up the charge by its key, and does nothing if there is none. Also record that this key is cancelled, so a charge that arrives late is rejected.
+
+**2. A compensation that fails, or runs twice.** The saga decides to refund 40, but the refund service is down. If the saga tries once and gives up, the customer stays charged, and the order is `FAILED`, so nothing looks wrong.
+
+Retrying fixes this, but it brings the next problem. Say the refund went through, and only the reply was lost. A retry with no idempotency key refunds again, and the customer gets 80 back.
+
+**What to do instead.** Keep the saga in `COMPENSATING` and retry with waits between tries, always with the same key such as `order-42:refund`. Raise an alert if it takes too long, and move it to a manual-review queue. A **dead-letter queue** (where a message broker puts messages it could not process) often feeds that queue. A compensation must never be "best effort".
+
+**3. Users seeing the middle.** A database transaction hides half-finished work from other users. This is called **isolation**, and a saga does not have it. Say one item is left in stock. Order A reserves it. Two seconds later A's payment fails and the stock is released. In those two seconds, customer B sees "sold out" and leaves, and the item then sits unsold.
+
+**What to do instead.** Do not show the middle state as if it were final. Show a **pending** state, such as "reserved for 10 minutes", and design the screens around it. The order is either confirmed or released.
+
+Smaller pitfalls:
+
 - **Forgotten timeouts.** A step that never answers leaves the saga waiting forever. Give every step a deadline, and have a background job that picks up stuck sagas.
 - **Choreography that turned into spaghetti.** When five services react to each other's events, nobody can say what happens when step 3 fails. Switch to an orchestrator when the flow gets that complicated.
-- **Treating compensation as a perfect undo.** A refund takes days to appear and may cost fees. Customers can see the intermediate state.
+- **Treating compensation as a perfect undo.** A refund takes days to appear and may cost fees.
 - **Building it all by hand.** Workflow engines such as Temporal, Camunda or AWS Step Functions store the saga's state, retries and timers for you. Consider one before writing your own.
 
 ## Which should you use?

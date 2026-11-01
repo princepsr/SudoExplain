@@ -146,10 +146,23 @@ For actions you cannot reverse, such as large refunds, deleting data or sending 
 
 ## When the fix goes wrong
 
-- **Lowering the temperature.** **Temperature** is a setting that controls how random the output is. Low values make output more repeatable, not more truthful. A confident wrong answer stays wrong.
-- **A second model as judge.** A model checking another model can share the same blind spot, or be fooled by the same fluent text. Use it as one signal, never the only gate.
+These three are the ones that look like fixes but are not.
+
+**1. Lowering the temperature.** **Temperature** is a setting that controls how random the output is. It is tempting to turn it down, because a calm model sounds like a careful one.
+
+But a low value only makes the model pick its most likely words more often. Ask "How many days do refunds take?" ten times, and a low setting gives you nearly the same answer each time. If that answer is "90 days" and the policy says 30, you now have the same wrong answer again and again, and it looks even more trustworthy. Repeatable is not the same as true. Use grounding and fact checks (Fixes 1 and 3) for truth, and use temperature only to tune style.
+
+**2. A second model as judge.** The idea is to ask another model "is this answer correct?" before the customer sees it. The trouble is that a judge only has the text in front of it. "Refunds are allowed within 90 days" reads fluent and sure, so a judge with no access to the policy often agrees. Two models trained on similar text can share the same blind spots.
+
+A judge is more useful when it can compare the answer with the retrieved documents, and it can catch some errors. Treat it as one signal. The gate that decides whether money moves must be code that checks the real record, as in Fix 3.
+
+**3. Trusting model-written code or SQL.** A model can write code that calls a function that does not exist, or a query that does too much. Suppose a user says "clean up my old test orders" and the model writes `DELETE FROM orders WHERE status = 'test'`, but some real orders also carry that status. The query is valid, so nothing complains, and the rows are gone.
+
+Protect yourself in layers. Run generated SQL with a database account that can only read. Try generated code in a sandbox, an isolated place where a mistake cannot reach real data. For anything that writes or deletes, show the exact statement to a person first (Fix 6).
+
+Shorter ones:
+
 - **Validation of format only.** Valid JSON with an invented ID passes a schema check. Check the facts.
-- **Trusting model-written code or SQL.** Generated code can call missing functions or run destructive queries. Review it, run it in a sandbox first, and never run generated SQL with write access unchecked.
 - **Letting untrusted text steer the model.** A document or web page can contain instructions that the model follows. See [the prompt injection post](/posts/prompt-injection/).
 - **No evaluation set.** Without one, every change is a guess.
 

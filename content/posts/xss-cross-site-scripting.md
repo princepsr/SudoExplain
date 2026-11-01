@@ -138,10 +138,21 @@ Add `HttpOnly` so scripts cannot read the session cookie, `Secure` so it travels
 
 ## When the fix goes wrong
 
-- **Blocking the word `script`.** Attackers use other routes, such as `onerror`, `onload` and `svg` tags. A blocklist is always incomplete.
-- **Encoding in the wrong context.** HTML encoding does not make a value safe inside a JavaScript block or an unquoted attribute.
+Encoding is the main fix, and it is easy to apply in a way that does not work. These are the three traps that matter most.
+
+**1. Encoding for the wrong context.** The `escapeHtml` function above is right for the HTML body. People then use it everywhere. But each spot in a page reads text by different rules, so one encoder cannot fit all.
+
+Take a name placed in an attribute with no quotes: `<input value=NAME>`. The attacker's name is `x onfocus=alert(1) autofocus`. `escapeHtml` changes nothing here, because there is no `<`, `&` or quote in it. I ran it, and the output was `<input value=x onfocus=alert(1) autofocus>`. The space ended the value, and the rest became new attributes. The fix is to always put quotes around attribute values, then encode.
+
+The second case is an inline handler: `onclick="greet('NAME')"`. The browser decodes HTML entities in the attribute **before** it runs the text as JavaScript. So `&#39;` turns back into a real quote, and the attacker's quote ends your string. The encoding was undone before it could help. Do not put user text into handlers or script blocks. Attach the handler with `addEventListener`, and pass the value as data, such as a `data-` attribute that you read with JavaScript.
+
+**2. Blocking bad words.** A filter that removes `<script>` looks like a fix. Attackers just choose another route. `<img src=x onerror=alert(1)>` has no `script` in it, and my removal filter let it through unchanged. A filter that removes the word once can even be tricked into building it: from `<scr<script>ipt>alert(1)</script>`, removing the inner `<script>` leaves `<script>alert(1)</script>`. A list of bad things is never complete. Encode output, so that every character is treated as plain text, whatever it spells.
+
+**3. Trusting URLs in `href`.** A link `<a href="javascript:alert(1)">` runs code when clicked. `escapeHtml` does not touch it, because the text contains no special character. Checking `startsWith("javascript:")` also fails, because browsers ignore leading spaces and capital letters, so `" JaVaScRiPt:alert(1)"` still works as a link. Instead, parse the address with the `URL` class and allow only `http:` and `https:`. My check returned `#` for all of these, and kept `https://example.com/a`. It also rejects relative links such as `/a`, so adapt it if you need them.
+
+Smaller traps, in short:
+
 - **Sanitizing on input instead of encoding on output.** Data stored "clean" may later land in a different context, such as an email or a CSV. Encode when you display.
-- **Trusting URLs in `href`.** A link whose address starts with `javascript:` runs code when clicked. Allow only `http` and `https`. My small check using the `URL` class returned `#` for `javascript:alert(1)` and kept `https://example.com/a`. It also rejects relative links, so adapt it if you need them.
 - **Markdown with raw HTML.** Some markdown libraries, such as marked, pass raw HTML through, so check your library's default. Turn that off or sanitize the result.
 - **Rendering model output as markdown.** If a chat page renders images from untrusted text, a hidden image address can carry data out. [The prompt injection post](/posts/prompt-injection/) covers that related trick.
 - **Relying on CSP alone.** A loose directive, such as `'unsafe-inline'` without a nonce or hash, removes most of its protection.

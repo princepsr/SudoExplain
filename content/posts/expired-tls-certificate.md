@@ -126,11 +126,26 @@ Run the renewal early and on purpose, in staging. Use `--dry-run` for certbot. T
 
 ## When the fix goes wrong
 
-- **Renewal works, but the server was not reloaded.** The new file is on disk, yet the process still serves the old certificate from memory. Certbot's `--deploy-hook` runs a command after a successful renewal, such as `systemctl reload nginx`.
-- **A missing intermediate.** The server sends only the leaf. Some clients cope by fetching the rest and others fail. Serve the full chain.
+Automation is only half the job. Three failures are common, and each one can look like success.
+
+**1. Renewal works, but the server was not reloaded.** The renewal tool replaces the certificate file on disk and reports success. But a web server reads the file once, when it starts, and keeps the certificate in memory. So it goes on serving the old one.
+
+Take a certificate that expires on 5 April. Certbot renews it on 20 March, and the new file on disk is valid until 5 July. Nobody reloads nginx. On 5 April the process still serves the old certificate from memory, and clients see an expired certificate, even though the file on disk is fine.
+
+**What to do instead.** Make the reload part of the renewal. Certbot's `--deploy-hook` runs a command after a successful renewal, such as `systemctl reload nginx`. A reload makes the server read the files again without dropping connections. Then check from outside, as in Fix 2, that the served `notAfter` date has changed.
+
+**2. A missing intermediate.** The server must send its leaf certificate and the intermediate certificate that signed it, so the client can build the chain up to a root it trusts. A common mistake is to configure only the leaf file. Some clients hide the problem, because they can fetch or remember a missing intermediate. Others fail with an error, and which ones depends on the client. So the site can look fine in your browser and still fail for an API partner.
+
+**What to do instead.** Serve the full chain, meaning the leaf followed by the intermediates. With certbot this is the `fullchain.pem` file, not `cert.pem`. Test with `openssl s_client` and read the `Verify return code` line, as shown in the diagnosis steps. A code `20` means the chain is incomplete.
+
+**3. The ACME challenge breaks, and renewal fails quietly.** To renew, the tool must prove it controls the domain. Often the CA makes a request to your server or reads a DNS record. A new firewall rule, a changed redirect or a moved DNS zone can block that check. The renewal job fails, but nobody is watching it, and the old certificate keeps working until its end date. The failure only shows on the day it expires.
+
+**What to do instead.** Do not trust the job. Alert on the days left in the certificate that is served (Fix 2), so a silent renewal failure becomes a warning weeks ahead. Run `certbot renew --dry-run` after any change to the firewall, proxy or DNS.
+
+The smaller ones:
+
 - **Clock skew.** If a client's clock is wrong, a valid certificate looks expired or "not yet valid" (error code `9`). The [JWT clock skew post](/posts/jwt-clock-skew/) shows the same trap for tokens.
 - **Lifetimes keep shrinking.** The CA/Browser Forum, the group that sets rules for public CAs, limits certificates issued on or after March 15, 2026 to 200 days. The limit falls to 100 days for certificates issued on or after March 15, 2027, and to 47 days for those issued on or after March 15, 2029 (Baseline Requirements, section 6.3.2). Let's Encrypt has announced 45-day certificates by 2028. Manual renewal gets harder every year.
-- **The ACME challenge breaks.** A firewall rule or DNS change can block the check, and renewal fails quietly.
 - **Private CA certificates sit outside the schedule.** The public limits do not apply to them, so they often get forgotten.
 
 ## Which should you use?

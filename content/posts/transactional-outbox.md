@@ -139,9 +139,21 @@ For cleanup, delete or archive rows a safe time after they are published, in sma
 
 ## When the fix goes wrong
 
-- **Marking rows sent before the broker confirms.** If the relay sets `published_at` first and the publish then fails, the event is lost for good. Mark only after the broker acknowledges.
+An outbox only helps if the relay is careful. Two relay mistakes cause most real losses.
+
+**1. Marking rows as sent before the broker confirms.** It looks harmless. The relay sets `published_at`, then publishes, and the code reads in a natural order. The trap is that "marked" now means "I will try", not "it arrived".
+
+Say the relay marks order 501's row, and then the broker is down, or the relay crashes. The row says it was sent. The relay never looks at it again, and the event is gone for good. This is the original problem again, now hidden inside your own table.
+
+A second form is quieter. Many broker clients send in the background. In Kafka's Java client, `send()` adds the message to a buffer and returns at once with a `Future`. A call that returns without an error only means "queued", not "the broker has it". So the relay must **wait** for the acknowledgement, by waiting on that `Future` or by using the callback, and only then mark the row. If a crash lands between the acknowledgement and the mark, the row is sent twice. That is fine, because consumers are idempotent. A duplicate is cheap, and a lost event is not.
+
+**2. A poison row.** A **poison row** is one the broker will always refuse, for example a payload over the size limit. The relay takes the next 100 unsent rows in order. If row 3 fails and the code gives up on the whole batch, the same 100 rows come back on the next loop, and row 3 fails again. Rows 4 to 100 never go out, and every new event queues behind them. One bad row has stopped the pipeline.
+
+Add an `attempts` column and count each failure. After a set number, such as 5, move the row aside by marking it failed, so the relay skips it. Then raise an alert so a person looks at it. [The dead letter queue post](/posts/poison-message-dead-letter-queue/) covers this idea. One caution: if you set a row aside, later events for the **same order** should wait too, or they will arrive without the earlier one.
+
+Smaller traps, in short:
+
 - **Deleting rows too early.** Deleting at publish time removes your only evidence when a consumer says it never got the event. Keep rows for a retention period.
-- **A poison row.** One row the broker rejects, such as an oversized payload, makes the relay fail on it every time and blocks the rows behind it. Count attempts, then move the row aside, as in [the dead letter queue post](/posts/poison-message-dead-letter-queue/).
 - **An unbounded table.** Without cleanup, the outbox grows until queries slow down.
 - **Writing the event outside the transaction.** If the code inserts the outbox row on a different connection, you have a dual write again.
 - **Treating one outbox as a whole workflow.** The outbox delivers events. It does not undo earlier steps when a later one fails. For multi-step processes, see [the saga post](/posts/saga-pattern/).

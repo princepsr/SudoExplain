@@ -145,9 +145,26 @@ The **same key is passed on** to the payment provider, since many providers, Str
 
 ## When the fix goes wrong
 
-- **Recording the key after the work.** If the server crashes between charging and recording, the retry charges again. Record first, mark done after.
-- **A key that is generated per attempt.** If the client makes a new key on each retry, nothing is deduplicated. The key belongs to the **action**, not the attempt. Generate it when the user starts the action and reuse it for every retry.
-- **A stuck "in progress" row.** A crash can leave a row that never completes, and every retry then gets "still processing". Give in-progress rows a timeout.
+A key table is easy to add and easy to get subtly wrong. Three mistakes matter most.
+
+**1. Recording the key after the work.** The natural order feels logical: look the key up, charge the card, then save the key. The check is "have I seen this key?", and the save is "now I have".
+
+The trouble is the gap between the charge and the save. Say the server charges $50 and crashes before it saves the key. The retry arrives, finds no key, and charges another $50. The same gap exists with no crash at all. Two copies of one request that arrive together both look the key up, both find nothing, and both charge. This is the check-then-act race from the earlier section.
+
+**What to do instead.** Insert the key row first, with status `in_progress`, and rely on the unique constraint. Only one request can insert it. The loser sees the row and does not charge. Mark the row `done` after the work.
+
+**2. A key that is generated per attempt.** A common version: the retry code builds a fresh UUID each time it sends. Every attempt looks like a new action, so the table never sees a repeat. Attempt 1 charges $50, the reply is lost, and attempt 2 arrives with a different key. The server charges again.
+
+**What to do instead.** The key belongs to the action, not the attempt. Create it once, when the user starts the action, such as when the checkout page loads. Keep it, and send the same value on every retry of that action. Only a new action, such as a second purchase, gets a new key.
+
+**3. A stuck "in progress" row, and the timeout that fixes it.** Record-first has a price. If the server crashes after inserting the row, the row says `in_progress` forever. Every retry then gets "still being processed", and the user can never finish.
+
+The usual fix is a timeout: after some time, an `in_progress` row may be taken over. But a timeout that is too short is dangerous. Suppose a payment can take up to 40 seconds, and the timeout is 30. At second 31 a retry takes over the row while the first request is still working. Now two requests charge at once.
+
+**What to do instead.** Set the timeout longer than the slowest normal run of the work. Also pass the same key on to the payment provider, as shown earlier. Then even if two requests do run, the provider charges once.
+
+The smaller ones:
+
 - **Keys that expire too early.** If you keep keys for an hour and a client retries after a day, the key is gone. Keep them at least as long as a client may retry, often a day or more. Providers expire keys too (Stripe may prune them after 24 hours), so your own table must cover longer retry windows.
 - **Other side effects.** A **side effect** is anything the action does besides its main result. The payment is safe now, but the confirmation email may still go out twice. Each side effect needs its own protection.
 - **One key shared between users.** Scope the key by user, as the primary key above does, or one user's key can block another's request.

@@ -112,9 +112,29 @@ Gitleaks prints each finding with the commit and file. TruffleHog can also try t
 
 ## When the fix goes wrong
 
-- **Rewriting history before rotating.** The secret is still valid while you clean. The copies exist already. Rotate first, always.
-- **Rotating but not updating the services.** The old key is dead and your app now fails to start. Deploy the new secret to every service that used the old one, in a planned order.
-- **Secrets in other places.** Logs, build artifacts, container images and chat messages can hold copies. A Docker image layer keeps a file even if a later layer deletes it. Check these too, and keep secret values out of log messages in the first place.
+The first three of these do the most harm, so they get a little more space.
+
+**1. Cleaning the history before rotating.** Rewriting history feels like the real fix, because the secret disappears from the repository. But the repository was never the only copy. Clones, forks and scanners hold their own, and the key still works.
+
+Say the key leaked at 10:00 and you finish a careful clean-up at 12:00. For those two hours anyone holding the key could use it. At 12:01 they still can. The clean-up changed what new visitors see, not what the key can do. Rotate first, as in step 1, and clean afterwards for hygiene.
+
+**2. Rotating, but not updating the services.** To rotate is to disable the old secret, and your own systems use that secret too. If you forget one, such as a nightly job or a staging server, it starts failing with "access denied", maybe at 3 a.m. The temptation is then to switch the leaked key back on.
+
+Avoid this by listing every place that uses the secret before you start: config files, CI settings, the secret manager, other teams. If the provider lets two secrets exist at once (AWS allows two access keys per IAM user), create the new one first, deploy it everywhere, and only then disable the old one. The cost is that the leaked key works a little longer, so do it in minutes, not days. If the audit log already shows abuse, use the order in step 1: disable the old key at once and accept a short outage.
+
+**3. Secrets in other places.** Copies also hide outside Git. A **Docker image** is built in **layers**, and each step in the Dockerfile adds one. Look at this:
+
+```dockerfile
+COPY .env /app/.env
+RUN rm /app/.env
+```
+
+The second line adds a new layer that says "the file is gone". The first layer still holds it, and anyone who can pull the image can unpack that layer and read the file. Logs, build artifacts and chat messages can hold copies in the same way.
+
+So rotate the secret, since the old one is compromised in every copy. Then rebuild the image without it, remove the old images from your registry, and pass secrets in at run time instead of baking them in. Docker's build secrets feature exists for secrets needed only during a build. Keep secret values out of log messages too.
+
+Shorter ones:
+
 - **A secret in a pull request branch.** An unmerged branch still stores the commit, and the pull request keeps a reference to it.
 - **Believing it was private.** A private repo can become public, be cloned onto a stolen laptop, or be shared with a contractor. Rotate anyway.
 - **Skipping the audit.** Cleaning the repo without reading the audit log leaves you not knowing whether anything was taken.

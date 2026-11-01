@@ -121,11 +121,23 @@ Do not call `LocalDate.now()` deep inside business code. Pass in a `java.time.Cl
 
 ## When the fix goes wrong
 
-- **`LocalDateTime` for real moments.** It looks convenient, but it has no zone, so it cannot tell you when something truly happened. Use it only for "a wall-clock time whose zone is known elsewhere".
+Fix 1 says to store moments as instants in UTC. That is right for moments that already happened, but two traps follow from using it too widely.
+
+**1. Using UTC for future events.** A meeting that has not happened yet is not a past moment. It is a promise about a wall clock: "9 a.m. on that day, where the people are". Converting it to UTC today turns the promise into a fixed moment, and that is where it breaks.
+
+Imagine a meeting booked for 9:00 next July, in a country that is UTC+2 in summer. You convert it now and store `07:00 UTC`. Later the government scraps summer time, so the country stays at UTC+1 all year. Your stored `07:00 UTC` now shows as 08:00 on the screen, while everyone still turns up at 9:00. The rule changed, but your stored value did not.
+
+Rules like these do change. Governments edit daylight-saving dates and offsets, and the time zone database that Java uses is updated for that reason. So store the **local date-time plus the zone name**, such as `2027-07-15T09:00` and `Europe/Paris`. Work out the instant only when you need it, for example when you send the reminder. By then your zone data is as current as it can be.
+
+**2. Parsing dates in JavaScript.** `new Date("2026-03-01")` looks like "1 March". But a string with only a date is read as **midnight UTC**, not local midnight. In New York, which is UTC-5 in early March, that moment is 19:00 on 28 February. A page that shows the local date prints 28 February, and the user sees the day before. This is the browser version of the birthday bug.
+
+Be careful: a string that has a date **and** a time but no offset, such as `"2026-03-01T00:00:00"`, is read as **local** time. Adding a time silently changes the meaning. Do not rely on either form for a calendar date. Split the string and build the date from its parts, as in `new Date(2026, 2, 1)`, where months count from 0. Or keep it as the text `"2026-03-01"` and never turn it into a `Date`.
+
+Smaller traps, in short:
+
+- **`LocalDateTime` for real moments.** It has no zone, so it cannot tell you when something truly happened. Use it only for "a wall-clock time whose zone is known elsewhere".
 - **Offsets instead of zone names.** `+01:00` is right in winter and wrong in summer for the same place. Store `Europe/Paris`.
-- **UTC for future events.** A meeting set for 9 a.m. local time next year should be stored as local time **plus its zone**. If you convert to UTC now and the country changes its daylight-saving rules, the meeting moves.
 - **The legacy classes.** `SimpleDateFormat` is not thread-safe, which makes it a race condition waiting for a busy server. [The race conditions post](/posts/race-condition-check-then-act/) explains the idea. `Date.toString()` also uses the default zone. Prefer `java.time` throughout.
-- **JavaScript parsing.** `new Date("2026-03-01")` is read as UTC midnight, and a local-time display can show the previous day. Split the string and build the date from its parts, as in `new Date(2026, 2, 1)`, where months count from 0. Or format with the time zone set to UTC.
 - **JSON dates as numbers.** Some libraries write dates as numbers or arrays by default. Make them write ISO-8601 strings.
 - **Relying on the server's zone.** Setting the server to UTC is a good safety net, but still pass zones explicitly in code.
 

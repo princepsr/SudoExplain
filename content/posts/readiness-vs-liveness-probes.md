@@ -179,12 +179,25 @@ strategy:
 
 ## When the fix goes wrong
 
-- **Readiness that depends on an optional service.** If every instance reports "not ready" because a non-critical recommendations service is slow, they all leave rotation. The whole site is down even though checkout could work. Only include what is truly required.
-- **A liveness probe that is too eager.** Failing after two quick misses, or with a 1-second timeout, will restart instances during a normal garbage-collection pause. Use generous thresholds and timeouts.
+Three of these pitfalls hurt the most, because they turn a small problem into an outage.
+
+**1. Readiness that depends on an optional service.** It seems right for readiness to check everything the page needs, including a recommendations service. Then recommendations gets slow. Every instance calls the same service, so every instance fails readiness at the same moment. The platform takes them all out of rotation, and no instance is left to serve requests. Checkout fails too, even though it never needed recommendations.
+
+A useful rule: if the problem is in something shared, removing instances does not help. Put in readiness only what this instance cannot do useful work without. For optional parts, stay ready and degrade: show the page without recommendations, using a short timeout. The cascading failures post, linked at the end of this section, shows how to stop a slow service from dragging others down.
+
+**2. A liveness probe that is too eager.** Say liveness has a 1-second timeout and fails after 2 misses, 10 seconds apart. A garbage-collection pause or a traffic spike makes two answers slow, and the platform restarts the instance after about 20 seconds of slowness. That removes capacity, so the other instances get more load. They slow down, miss their probes, and get restarted too. The restarts then cause the outage.
+
+Remember what liveness is for: it should catch a process that is stuck for good, not one that is merely slow. Use the settings from Fix 1, a 3-second timeout and 6 failures, which means about a minute of silence before a restart. Keep the check cheap and local.
+
+**3. A slow start that never ends.** Say an instance needs 90 seconds to start, for example while it loads a cache. Liveness has no initial delay, checks every 10 seconds, and allows 3 failures. After 3 × 10 = 30 seconds the platform restarts it. The next start also takes 90 seconds, so it is killed again, and again. A healthy instance never gets the chance to finish starting.
+
+A **startup probe** fixes this. Kubernetes does not run liveness or readiness probes until the startup probe succeeds. In the YAML above, 30 failures × 5 seconds gives the instance up to 150 seconds. A fixed `initialDelaySeconds` is only a guess, and it always waits the full time. The startup probe moves on as soon as the app is up. After that, liveness reacts quickly again.
+
+The smaller pitfalls, in short:
+
 - **A grace period shorter than your slowest request.** If a request can take 60 seconds and you allow 30, it is cut off anyway.
 - **A `preStop` sleep that is too short.** A one-second pause may not cover the time the load balancer needs to update.
 - **`maxUnavailable` above zero with few replicas.** With three instances, allowing one to be unavailable removes a third of your capacity during every deploy.
-- **A slow start that never ends.** Without a startup probe, a liveness check can kill an instance that is simply slow to start, over and over.
 
 A busy instance can also fail its probes simply because its threads are all stuck waiting. [The cascading failures post](/posts/cascading-failures-circuit-breaker/) shows how that happens.
 
