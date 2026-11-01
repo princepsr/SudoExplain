@@ -21,11 +21,24 @@ Because there is not one query. There are five thousand and one. It is like maki
 > 3. How to **diagnose** it, even though no single query is slow
 > 4. The fixes (fetch joins, batching, projections) and how each can backfire
 
-## First, lazy loading
+## First, what an ORM does
 
-An **ORM** (object-relational mapper) turns database rows into Java objects. Hibernate is the best-known one, and it implements JPA, the standard Java API for this. To avoid loading everything at once, related data can be **lazy**: it is fetched only when your code first touches it.
+Your data lives in database tables, as rows and columns. Your Java code works with objects, such as an `Order` with a `customer` and a `total`. Moving data between the two by hand is tedious: you write the SQL, read each column of the result, and copy it into the right field, again and again.
 
-An `Order` has a `Customer`. You mark the link as lazy like this:
+An **ORM** (object-relational mapper) does that copying for you. You describe which class matches which table. After that you ask for an `Order` object, and the ORM sends the SQL (`SELECT * FROM orders WHERE id = 5`) and fills in the object from the row. You write far less code, and you rarely see the SQL.
+
+Two names come up all the time:
+
+- **JPA** is the standard way to describe the matching in Java, using annotations such as `@Entity` and `@ManyToOne`. It is only a written set of rules. It does no work by itself.
+- **Hibernate** is a library that follows those rules and does the real work of building the SQL. Spring Boot's data support uses it by default, so most Java projects run it, even when nobody on the team chose it on purpose.
+
+That hidden SQL is where this post's problem comes from, so keep it in mind: the ORM sends queries that you never wrote.
+
+## Then, lazy loading
+
+An `Order` has a `Customer`, and a `Customer` has its own addresses, orders and more. If the ORM loaded all of that every time you asked for one order, it would read far more data than you need. So related data can be **lazy**: it is fetched only when your code first touches it.
+
+You mark the link as lazy like this:
 
 ```java
 @ManyToOne(fetch = FetchType.LAZY)
