@@ -46,7 +46,8 @@ Nothing here needs configuring.
 | Titles and descriptions | Unique per page. A post without `description` gets an excerpt of its first paragraph. The site name is added to the page title only when the result stays within 60 characters, because search results cut longer titles |
 | Canonical URLs | Every page declares its own canonical address |
 | Open Graph and Twitter tags | Title, description, type, site name, and the preview image with its size and alt text |
-| Structured data (JSON-LD) | `WebSite` on the home page, `BlogPosting` on posts (headline, dates, author, keywords) |
+| Structured data (JSON-LD) | `WebSite` on the home page, `BlogPosting` and `BreadcrumbList` on posts (headline, dates, image, reading time, author with links to GitHub and LinkedIn) |
+| Search and AI crawler hints | A robots meta tag allowing large snippets and image previews on indexable pages, and `/llms.txt`, a plain-text list of every published post with its summary (drafts are never listed) |
 | Sitemap | `/sitemap.xml`, with last-modified dates for posts. Drafts are excluded |
 | RSS feed | `/rss.xml`, latest 20 posts, announced in every page's `<head>` |
 | Indexing control | The 404 page and per-topic pages are `noindex, follow`, and the topic pages are not in the sitemap |

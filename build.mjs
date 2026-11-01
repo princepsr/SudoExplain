@@ -613,7 +613,8 @@ function layout({
 <link rel="canonical" href="${esc(canonical)}">
 <link rel="icon" href="${withBase('/favicon.svg')}" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="${esc(cfg.title)}" href="${withBase('/rss.xml')}">
-<meta name="author" content="${esc(cfg.author)}">${noindex ? '\n<meta name="robots" content="noindex, follow">' : ''}
+<meta name="author" content="${esc(cfg.author)}">
+<meta name="robots" content="${noindex ? 'noindex, follow' : 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1'}">
 <meta property="og:site_name" content="${esc(cfg.title)}">
 <meta property="og:title" content="${esc(fullTitle || title || cfg.title)}">
 <meta property="og:description" content="${esc(desc)}">
@@ -799,20 +800,44 @@ function postPage(post, newer, older, related = []) {
     card: postCard(post.slug),
     published: isoDay(post.date),
     modified: isoDay(post.updated),
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'BlogPosting',
-      headline: post.title,
-      description: post.description,
-      datePublished: isoDay(post.date),
-      dateModified: isoDay(post.updated),
-      url: `${cfg.url}${cfg.basePath}/posts/${post.slug}/`,
-      mainEntityOfPage: `${cfg.url}${cfg.basePath}/posts/${post.slug}/`,
-      keywords: post.tags.join(', '),
-      inLanguage: cfg.lang,
-      author: { '@type': 'Person', name: cfg.author },
-      publisher: { '@type': 'Person', name: cfg.author },
-    },
+    jsonLd: (() => {
+      const site = `${cfg.url}${cfg.basePath}`;
+      const url = `${site}/posts/${post.slug}/`;
+      const cardPath = postCard(post.slug) || cfg.ogImage;
+      const person = {
+        '@type': 'Person',
+        name: cfg.author,
+        url: `${site}/about/`,
+        sameAs: [cfg.github, cfg.linkedin].filter(Boolean),
+      };
+      return [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BlogPosting',
+          headline: post.title,
+          description: post.description,
+          datePublished: isoDay(post.date),
+          dateModified: isoDay(post.updated),
+          url,
+          mainEntityOfPage: url,
+          ...(cardPath ? { image: `${site}${cardPath}` } : {}),
+          keywords: post.tags.join(', '),
+          timeRequired: `PT${post.minutes}M`,
+          inLanguage: cfg.lang,
+          author: person,
+          publisher: person,
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: cfg.title, item: `${site}/` },
+            { '@type': 'ListItem', position: 2, name: 'Writing', item: `${site}/posts/` },
+            { '@type': 'ListItem', position: 3, name: post.title, item: url },
+          ],
+        },
+      ];
+    })(),
     body: `<div class="post-layout">
 <article class="post">
   <header class="post-head">
@@ -993,6 +1018,18 @@ function notFoundPage() {
 
 // ---------- Feeds ----------
 
+// A plain-text map of the site for AI assistants and crawlers (the llms.txt convention): what the site is,
+// then every published post with its one-line summary. Drafts are never listed.
+function llmsTxt(posts) {
+  const site = `${cfg.url}${cfg.basePath}`;
+  const lines = [`# ${cfg.title}`, '', `> ${cfg.description}`, '', '## Posts', ''];
+  for (const p of posts) {
+    lines.push(`- [${p.title}](${site}/posts/${p.slug}/)${p.description ? `: ${p.description}` : ''}`);
+  }
+  lines.push('', '## More', '', `- [About the author](${site}/about/)`, `- [All posts](${site}/posts/)`, `- [RSS feed](${site}/rss.xml)`, '');
+  return lines.join('\n');
+}
+
 function rssFeed(posts) {
   const base = cfg.url + cfg.basePath;
   const items = posts
@@ -1099,6 +1136,7 @@ function build() {
   emit('/search-index.json', JSON.stringify(searchIndex(posts)));
   emit('/sitemap.xml', sitemap(paths));
   emit('/robots.txt', `User-agent: *\nAllow: /\nSitemap: ${cfg.url}${cfg.basePath}/sitemap.xml\n`);
+  emit('/llms.txt', llmsTxt(published));
 
   console.log(`Built ${posts.length} post(s) in ${Date.now() - started}ms -> dist/`);
   if (CHECK) reportSuggestions(posts);
