@@ -1,9 +1,8 @@
 ---
-title: N+1 query problem: why one page runs 500 queries
+title: N+1 query problem in Hibernate and JPA: find it and fix it
 date: 2026-11-01
-description: Why a page that was fast in development takes 10 seconds in production, how lazy loading hides hundreds of queries, and how to find and fix them.
+description: Why a Hibernate or JPA page that is fast in development takes 10 seconds in production, how lazy loading hides hundreds of queries, and how to fix it.
 tags: java, databases, performance
-draft: true
 ---
 
 ## The doubt
