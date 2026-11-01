@@ -6,7 +6,7 @@ A hand-built static blog about tech concepts, system design and the problems I r
 - **Fast and private.** No trackers, no cookie banner, no client-side framework.
 - **Hosted free** on GitHub Pages, deployed automatically on every push to `main`.
 
-Live site: https://princepsr.github.io/SudoExplain/
+Live site: https://sudoexplain.dev/
 
 ## Quick start
 
@@ -38,8 +38,7 @@ New to this? Follow [How to write a post](docs/writing-guide.md). It starts from
 | [How to write a post](docs/writing-guide.md) | From zero to published, plus how to explain things so beginners understand |
 | [Writing reference](docs/writing.md) | Front matter, supported Markdown, code highlighting, images, drafts |
 | [Configuration and SEO](docs/configuration.md) | Every `site.config.json` setting, and the SEO that is built in |
-| [Deployment](docs/deployment.md) | How GitHub Pages and the workflow are set up, plus troubleshooting |
-| [Custom domain](docs/custom-domain.md) | Step-by-step checklist for moving to your own domain |
+| [Deployment](docs/deployment.md) | How GitHub Pages, the custom domain and the workflow are set up, plus troubleshooting |
 
 ## Project layout
 

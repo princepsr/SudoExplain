@@ -12,8 +12,8 @@ All site-wide settings live in `site.config.json`. The build reads it every time
 | `description` | `An engineer's notebook on…` | Default meta description, home page intro, RSS |
 | `author` | `Prince Singh` | Footer, `author` meta tag, structured data |
 | `lang` | `en` | The `<html lang>` attribute, RSS language |
-| `url` | `https://princepsr.github.io` | Scheme and host only. Used for canonical URLs, sitemap, RSS, share tags |
-| `basePath` | `/SudoExplain` | Path prefix when the site is not at the root of its host. Use `""` at a domain root |
+| `url` | `https://sudoexplain.dev` | Scheme and host only. Used for canonical URLs, sitemap, RSS, share tags |
+| `basePath` | `""` | Path prefix when the site is not at the root of its host. Empty at a domain root, as now. Would be `/SudoExplain` on a github.io project address |
 | `ogImage` | `/og.png` | Link-preview image (1200x630 file in `static/`). Leave out to disable |
 | `github` | `https://github.com/princepsr` | Footer link. Leave empty to hide |
 | `linkedin` | `https://linkedin.com/in/…` | Footer link. Leave empty to hide |
@@ -64,11 +64,13 @@ Social networks cache previews, so a changed image or title can take a while to 
 
 ### Things to do outside the code
 
-1. **Google Search Console.** Add the site and submit `sitemap.xml`. Do this on the custom domain once it is live, not on the `github.io` address.
-2. **Write specific titles.** "Sessions vs JWT: where does your login actually live?" ranks better than "Authentication notes".
-3. **Link between posts.** Internal links help readers and search engines find related posts.
-4. **Update, don't replace.** When a post changes, edit it and set `updated`, so its URL and standing are kept.
+1. **Google Search Console.** Add a **Domain** property for `sudoexplain.dev` (Google gives a `TXT` record to add at Spaceship) and submit `https://sudoexplain.dev/sitemap.xml`. After publishing a post, use **URL inspection, Request indexing** on its address.
+2. **Bing Webmaster Tools.** Add the site (it can import from Search Console). Bing also feeds several AI assistants. Google does not use IndexNow, so it is not needed for Google.
+3. **Keep `robots.txt` open.** It allows every crawler, AI crawlers included. Keep it that way to be quoted in AI answers.
+4. **Write specific titles.** "Sessions vs JWT: where does your login actually live?" ranks better than "Authentication notes". Start with the phrase people search for.
+5. **Answer first.** Put a plain answer near the top, and use tables and numbered steps for comparisons and procedures. These are the parts snippets and AI answers quote.
+6. **Link between posts.** When a post is published, link to it from two or three older ones.
+7. **Update, don't replace.** When a post changes, edit it and set `updated`, so its URL and standing are kept.
+8. **Cross-posting.** If a post is republished elsewhere (dev.to, Hashnode), set the canonical URL there to the sudoexplain.dev address, and publish here first.
 
-### A limit to know about
-
-`robots.txt` is only read from the root of a domain. While the site lives at `princepsr.github.io/SudoExplain/`, crawlers ignore it. It starts working once the site is on its own domain. Search engines still find the site through the sitemap and links.
+Search results take weeks to build for a new domain, and indexing a post can take from a day to a few weeks. `llms.txt` is a young convention with unproven effect, which is why it is only a cheap extra.
