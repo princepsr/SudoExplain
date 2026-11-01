@@ -38,6 +38,7 @@ New to this? Follow [How to write a post](docs/writing-guide.md). It starts from
 | [How to write a post](docs/writing-guide.md) | From zero to published, plus how to explain things so beginners understand |
 | [Writing reference](docs/writing.md) | Front matter, supported Markdown, code highlighting, images, drafts |
 | [Configuration and SEO](docs/configuration.md) | Every `site.config.json` setting, and the SEO that is built in |
+| [Ideas for later](docs/future-ideas.md) | Likes, comments, view counts, email subscribe and an "ask the post" LLM box: what we decided and the simplest route for each |
 | [Deployment](docs/deployment.md) | How GitHub Pages, the custom domain and the workflow are set up, plus troubleshooting |
 
 ## Project layout
