@@ -687,11 +687,18 @@ function homePage(posts) {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       name: cfg.title,
-      alternateName: cfg.title.replace(/\s+/g, ''),
+      alternateName: [cfg.title.replace(/\s+/g, ''), `${cfg.title} blog`, cfg.title.toLowerCase()],
       url: `${cfg.url}${cfg.basePath}/`,
       description: cfg.description,
       inLanguage: cfg.lang,
-      author: { '@type': 'Person', name: cfg.author },
+      author: { '@type': 'Person', name: cfg.author, sameAs: [cfg.github, cfg.linkedin].filter(Boolean) },
+      publisher: {
+        '@type': 'Organization',
+        name: cfg.title,
+        url: `${cfg.url}${cfg.basePath}/`,
+        logo: `${cfg.url}${cfg.basePath}/icon-192.png`,
+        sameAs: [cfg.github, cfg.linkedin].filter(Boolean),
+      },
     },
     body: `<div class="wrap">
   <section class="hero">

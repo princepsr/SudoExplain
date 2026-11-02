@@ -3,7 +3,7 @@ title: About
 description: Who writes Sudo Explain, what it covers, and how to get in touch.
 ---
 
-Hi, I'm **Prince Singh**, a software engineer who works mostly with Java and web backends. I spend a lot of my time working out *why* a system behaves the way it does, and this blog is where I write those answers down.
+**Sudo Explain** (sudoexplain.dev) is a tech blog by **Prince Singh**, a software engineer who works mostly with Java and web backends. I spend a lot of my time working out *why* a system behaves the way it does, and this blog is where I write those answers down.
 
 ## Why this blog exists
 
