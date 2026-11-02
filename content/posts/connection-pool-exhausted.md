@@ -270,7 +270,7 @@ If the real problem is a leak, a bigger pool only delays the failure. Say a bug 
 
 If you are not sure where to begin, begin with the pool metrics and a thread dump. Together they show whether the problem is waiting, leaking or too many servers in about five minutes.
 
-If the pool drains because queries themselves are slow, look at the slow queries first. A missing index is a common cause, and `EXPLAIN` shows how the database runs a query. If one page runs hundreds of small queries, each request holds its connection for longer, and the [N+1 query problem](/posts/n-plus-one-query-problem/) is the likely cause.
+If the pool drains because queries themselves are slow, look at the slow queries first. [A missing index](/posts/slow-query-missing-index/) is a common cause, and `EXPLAIN` shows how the database runs a query. If one page runs hundreds of small queries, each request holds its connection for longer, and the [N+1 query problem](/posts/n-plus-one-query-problem/) is the likely cause.
 
 ## The takeaway
 

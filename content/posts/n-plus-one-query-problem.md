@@ -328,7 +328,7 @@ Start with a modest number, in the tens, then measure the page with your real da
 
 N+1 also hides in collections, such as `order.getItems()` inside a loop, and in hand-written loops that call a repository once per row. The fixes above apply to both.
 
-If you are not sure, turn on SQL logging for your three most visited pages and count. You will probably find one. If one query really is slow, that is a different problem, such as a missing index, and `EXPLAIN` shows how the database runs it.
+If you are not sure, turn on SQL logging for your three most visited pages and count. You will probably find one. If one query really is slow, that is a different problem, such as [a missing index](/posts/slow-query-missing-index/), and `EXPLAIN` shows how the database runs it.
 
 ## The takeaway
 

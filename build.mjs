@@ -459,7 +459,40 @@ function writingSuggestions(meta, body) {
 // Each post has its own link-preview card in static/og/<slug>.png, made by `node og-images.mjs`.
 const postCard = (slug) => (existsSync(join(ROOT, 'static', 'og', `${slug}.png`)) ? `/og/${slug}.png` : '');
 
+// Cross-post link checks. A published post must not link to a draft (a dead link on the live site), every
+// published post should be linked from another published post, and docs/pending-links.md rows whose target
+// is now live are reminders to turn plain text back into a link.
+function linkSuggestions(posts) {
+  const bySlug = new Map();
+  for (const p of posts) for (const name of [p.slug, ...p.aliases]) bySlug.set(name, p);
+  const live = posts.filter((p) => !p.draft);
+  for (const p of live) {
+    for (const t of new Set(p.links)) {
+      const target = bySlug.get(t);
+      if (!target) p.suggestions.push(`links to /posts/${t}/, which does not exist`);
+      else if (target.draft) p.suggestions.push(`links to the draft "${target.slug}", a dead link on the live site; turn it into plain text and list it in docs/pending-links.md`);
+    }
+    if (!live.some((o) => o !== p && o.links.some((t) => bySlug.get(t) === p))) {
+      p.suggestions.push('no published post links to this one; add a link from one or two older posts');
+    }
+  }
+  const file = join(ROOT, 'docs', 'pending-links.md');
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const cells = line.split('|').map((c) => c.trim());
+    const from = /^`([a-z0-9-]+)`$/.exec(cells[1] || '');
+    const to = /^`([a-z0-9-]+)`$/.exec(cells[4] || '');
+    if (!from || !to) continue;
+    const source = bySlug.get(from[1]);
+    const target = bySlug.get(to[1]);
+    if (source && !source.draft && target && !target.draft) {
+      source.suggestions.push(`pending link is ready: link "${cells[2]}" to ${cells[3]} (docs/pending-links.md), then delete the row`);
+    }
+  }
+}
+
 function reportSuggestions(posts) {
+  linkSuggestions(posts);
   console.log('\nWriting checks (suggestions only):');
   for (const p of posts) {
     if (!p.draft && !postCard(p.slug)) p.suggestions.push('no link-preview card; run: node og-images.mjs');
@@ -514,6 +547,7 @@ function loadPosts() {
         tags: [],
         minutes: Math.max(1, Math.round(body.split(/\s+/).length / 220)),
         suggestions: CHECK ? writingSuggestions(meta, body) : [],
+        links: CHECK ? [...body.matchAll(/\]\(\/posts\/([a-z0-9-]+)\/?\)/g)].map((m) => m[1]) : [],
         html: markdown(body),
       };
     });

@@ -110,6 +110,9 @@ This builds the site including drafts and then reviews every post. It never fail
 | No tags | Related posts and topic pages cannot find it | Add two to four tags |
 | Code block without a language | No colouring | Add `java`, `bash`, `pseudocode` or `text` |
 | Image without alt text | Screen readers say nothing | Describe the image between the `[ ]` |
+| Published post links to a draft or a missing post | The link is dead on the live site | Turn it into plain text and add a row to `docs/pending-links.md` |
+| Published post that no other published post links to | Readers and search engines cannot find it from older posts | Add a link from one or two older posts |
+| Pending link is ready | A row in `docs/pending-links.md` points to a post that is now live | Turn the plain text back into a link, then delete the row |
 | Empty section | A heading followed straight by another heading | Fill it in or delete the heading |
 | Long post with no summary box | Skimmers cannot tell what is inside | Add a `[!SUMMARY]` box at the top |
 | Template text still present | Text like `[First thing...]` is still there | Replace it with your own words |
@@ -249,8 +252,8 @@ Use invented names and numbers (`user 42`, `Server A`, `example.com`) and write 
 - [ ] `node build.mjs --check` shows `ok`
 - [ ] `draft: true` has been removed
 - [ ] `node og-images.mjs` has been run, so the post has its own share card
-- [ ] The post links to two or three related posts, and one or two older posts now link to it
-- [ ] Links to posts that are still drafts are turned into plain text, and added back when those posts go live. Drafts may link to each other while you write, so you can see what to connect
+- [ ] The post links to two or three related posts, and one or two older posts now link to it (`--check` warns if a published post has no inbound link, links to a draft, or has a pending link ready)
+- [ ] Links to posts that are still drafts are turned into plain text, and added back when those posts go live. Record each one in `docs/pending-links.md`. Drafts may link to each other while you write, so you can see what to connect
 
 ## Troubleshooting
 

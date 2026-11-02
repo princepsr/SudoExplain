@@ -58,5 +58,7 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 48 | Operations | Disk full outage: logs, inodes and log rotation | Logs fill the disk and the server stops working | disk-full-outage | draft |
 | 49 | AI | LLM hallucinations: validate AI output in production | The model invents a plausible answer and the system acts on it | llm-hallucinations | draft |
 | 50 | AI | Runaway AI agent: cap tool loops before they cost you | An agent calls tools in a loop with no limit | runaway-ai-agent | draft |
+| 51 | Database | Slow LIKE '%text%' search: fix it with a GIN index | A search box ignores the index and scans the whole table | like-wildcard-search-gin-index | draft (outline only) |
+| 52 | Database | Covering index: answer a query without touching the table | `SELECT *` forces a table visit for every row; an index-only scan, or `INCLUDE`, avoids it | covering-index-only-scan | idea (no file yet) |
 
 Skipped on purpose: topics with no real production failure (what a URL is, what an index is in the abstract). A topic only earns a post if there is a bug people actually meet.
