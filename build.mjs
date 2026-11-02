@@ -1107,6 +1107,13 @@ function llmsTxt(posts) {
   return lines.join('\n');
 }
 
+// Feed readers and DEV.to show the post away from this site, so root-relative links and images must be absolute.
+function absolutize(html, base) {
+  return html
+    .replace(/(href|src)="\/(?!\/)/g, `$1="${base}/`)
+    .replaceAll(']]>', ']]]]><![CDATA[>');
+}
+
 function rssFeed(posts) {
   const base = cfg.url + cfg.basePath;
   const items = posts
@@ -1118,11 +1125,12 @@ function rssFeed(posts) {
       <guid>${base}/posts/${p.slug}/</guid>
       <pubDate>${p.date.toUTCString()}</pubDate>
       <description>${esc(p.description)}</description>
+      <content:encoded><![CDATA[${absolutize(p.html, base)}]]></content:encoded>
     </item>`,
     )
     .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>${esc(cfg.title)}</title>
     <link>${base}/</link>
