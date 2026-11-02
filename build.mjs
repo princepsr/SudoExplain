@@ -1108,8 +1108,13 @@ function llmsTxt(posts) {
 }
 
 // Feed readers and DEV.to show the post away from this site, so root-relative links and images must be absolute.
-function absolutize(html, base) {
+// The diagrams are inline SVG styled by the site's CSS, which DEV.to strips, so the feed points to the original instead.
+function absolutize(html, base, postUrl) {
   return html
+    .replace(
+      /<div class="diagram diagram-wide">[\s\S]*?<\/div>\s*<div class="diagram diagram-tall">[\s\S]*?<\/div>/g,
+      `<p><em>Diagram: <a href="${postUrl}">see it on sudoexplain.dev</a></em></p>`,
+    )
     .replace(/(href|src)="\/(?!\/)/g, `$1="${base}/`)
     .replaceAll(']]>', ']]]]><![CDATA[>');
 }
@@ -1125,7 +1130,7 @@ function rssFeed(posts) {
       <guid>${base}/posts/${p.slug}/</guid>
       <pubDate>${p.date.toUTCString()}</pubDate>
       <description>${esc(p.description)}</description>
-      <content:encoded><![CDATA[${absolutize(p.html, base)}]]></content:encoded>
+      <content:encoded><![CDATA[${absolutize(p.html, base, `${base}/posts/${p.slug}/`)}]]></content:encoded>
     </item>`,
     )
     .join('\n');
