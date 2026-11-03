@@ -1,9 +1,8 @@
 ---
 title: Java memory leak: strong references and heap dumps
-date: 2026-11-01
+date: 2026-11-03
 description: Java has a garbage collector, yet services die with OutOfMemoryError. How strong references cause leaks, how to find them in a heap dump, and the fixes.
 tags: java, jvm
-draft: true
 ---
 
 ## The question
@@ -14,23 +13,31 @@ The confusing part is that Java has a garbage collector (GC), the part of the ru
 
 > If Java cleans up after me automatically, how can it run out of memory?
 
-Think of a coat check. The attendant throws away only coats that nobody holds a ticket for. If a ticket is still sitting in some drawer, the coat stays, even if its owner left years ago. The collector works the same way: it frees only what **nothing can reach any more**. If something still points at an object, it stays, even if your code will never use it again. That is a memory leak in a language that has garbage collection.
+Think of a restaurant that takes table bookings. The manager marks a table as free only when there is no booking for it. If a booking made months ago was never cancelled, the table stays blocked, even though those guests will never come. Add enough forgotten bookings and the restaurant says "we are full" while half the tables sit empty.
+
+The collector works the same way: it frees only what **nothing can reach any more**.
+
+If something still points at an object, it stays, even if your code will never use it again. That is a memory leak in a language that has garbage collection.
 
 > [!SUMMARY]
 > By the end you will know:
 >
 > 1. What the garbage collector really frees, and what it can never free
-> 2. The three shapes most Java leaks take: static maps, listeners and `ThreadLocal`
+> 2. Two common shapes of Java leaks: static maps and `ThreadLocal`
 > 3. How to **diagnose** a leak from GC logs, a class histogram and a heap dump
-> 4. How to fix it, and how the usual fixes go wrong
+> 4. How to fix it, and the tempting fix that does not work
 
 ## First, what "garbage" means
 
-Java keeps its objects in the **heap**, a region of memory with a maximum size set by the `-Xmx` flag. The collector decides what to free by walking from a set of **roots**: things the running program can always reach, such as static fields, local variables on live threads, and active threads themselves.
+Java keeps its objects in the **heap**, the area of memory your program uses while it runs. Its maximum size is set by the `-Xmx` flag.
 
-It follows every reference from the roots. Anything it reaches is **live**. Anything it cannot reach is **garbage** and gets freed.
+An object is **garbage** when nothing in your program can use it any more. The collector frees only garbage. Everything else is **live**.
 
-A normal reference in Java, the kind you write as `Foo f = new Foo();`, is a **strong reference**. As long as a strong reference chain leads from a root to an object, that object is live. The collector does not ask whether you still need it. It only asks whether it can be reached.
+How does Java know? Remember the restaurant. A table is free when no booking is attached to it. In Java, a **reference** is the booking: a variable that points at an object. If nothing points at an object, nobody can use it again, so it is garbage.
+
+The normal kind of reference, such as `Foo f = new Foo();`, is called a **strong reference**. While one exists, the object stays live. The collector does not ask whether you still need it. It only asks whether something still points to it.
+
+One more word, for later. Some things in your program are always in use: `static` variables, which last as long as the program runs, and the variables of code that is running right now. Java calls these **roots**. An object is live if a root points at it, directly or through other objects. You will meet the word again when we look at a heap dump.
 
 So a leak in Java is not "memory I forgot to free". It is "an object I no longer need, which something still points to".
 
@@ -48,9 +55,9 @@ public class ProductService {
 }
 ```
 
-The map is `static`, so it hangs off a root for as long as the class is loaded, which is the life of the application. Every key that is ever requested stays in it forever.
+The map is `static`, so it lives as long as the class is loaded, which is the life of the application. Every key that is ever requested stays in it forever.
 
-With a few thousand products, that is fine. Then someone builds the key from something that varies: a user ID, a search phrase, a session ID, a timestamp. The map gains a new entry for every distinct request and never loses one.
+With a few thousand products, that is fine. Then someone uses a key that is different on almost every request, such as a search phrase, a user ID or a timestamp. Each new key adds a new entry, and nothing ever removes one.
 
 ```text
 Day 1:   200,000 entries     heap after GC:  400 MB
@@ -63,45 +70,72 @@ The service did not use more memory because it got busier. It used more because 
 ```diagram
 type: flow
 alt: A static field holds a map, the map holds every product, so the collector can never free them and the heap fills.
-caption: Figure 1. The collector sees a chain from a root to every old entry, so it keeps them all.
+caption: Figure 1. The collector can still reach every old entry from the static field, so it keeps them all.
 Root: static field CACHE -> Map holds every key ever seen -> Old products are still reachable -> GC cannot free them !
 ```
 
-## Two other shapes you will meet
-
-The static map is the classic, but two more cause just as many incidents.
-
-**Listeners that are never removed.** A component registers itself with something long-lived, such as an event bus, a scheduler or a static registry, and never unregisters:
+**The fix: put a limit on the cache.** If something is meant to be a cache, give it a size limit, so old entries are evicted. A least-recently-used (LRU) map is enough for a start (this snippet needs Java 9 or later):
 
 ```java
-eventBus.register(this);   // the bus now holds a strong reference to "this"
-// ...the component is "closed", but nobody calls eventBus.unregister(this)
-```
-
-Every component you create and throw away is kept alive by the bus, together with everything that component references.
-
-**`ThreadLocal` values on pooled threads.** A `ThreadLocal` stores a value per thread. In a server, threads come from a pool and **live as long as the server does**. A value you set and never remove therefore lives as long as the thread:
-
-```java
-private static final ThreadLocal<UserContext> CURRENT = new ThreadLocal<>();
-
-void handleRequest(Request request) {
-    CURRENT.set(new UserContext(request));   // set per request, never cleared
-    // ...
+static <K, V> Map<K, V> lruCache(int maxEntries) {
+    return Collections.synchronizedMap(
+        new LinkedHashMap<>(16, 0.75f, true) {          // true = order by last access
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+                return size() > maxEntries;
+            }
+        });
 }
 ```
 
-The old context stays attached to the thread until the next request overwrites it. It can also leak into that next request. The memory is bounded by the thread count, so this is slow retention rather than endless growth.
+In real services, most people use a library such as Caffeine, which adds expiry and statistics. The idea is the same: **every cache needs a maximum size, or a time limit, or both**.
 
-The dangerous case is an application server that redeploys applications. A leaked `ThreadLocal` can keep the entire old application's classes alive, so each redeploy leaks again.
+## One more shape you will meet: `ThreadLocal`
+
+The static map is the classic. A second one is `ThreadLocal`, which many beginners have never used directly, but frameworks use it all the time. We will build it up step by step.
+
+**Step 1: threads.** A **thread** is one line of work inside your program that runs code. A web server keeps a group of threads, called a **thread pool**. When a request arrives, a free thread takes it, runs your code from start to finish, then goes back to the pool and waits for the next request. The threads are created once and reused for the life of the server.
+
+**Step 2: the problem.** Your code often needs to know who the logged-in user is. Many methods need it, and passing the user into every one of them is tedious.
+
+**Step 3: what `ThreadLocal` is.** A `ThreadLocal` is a variable that holds a **different value for each thread**. One thread stores the current user in it. Any code running on that same thread can read it, without a parameter. A thread never sees what another thread stored.
+
+Think of each thread as having a sticky note on its desk. It writes the user on the note at the start of the request, and anything that runs on that thread during the request can look at the note.
+
+```java
+static final ThreadLocal<UserContext> CURRENT =
+        new ThreadLocal<>();
+
+// at the start of a request
+CURRENT.set(new UserContext(request));
+
+// anywhere else, on the same thread
+UserContext user = CURRENT.get();
+```
+
+**Step 4: the leak.** When the request ends, the thread goes back to the pool. But **the thread does not go away, so the sticky note stays on its desk** with the old user still written on it. Nothing removes it unless your code does. If you never call `remove()`, the thread still points at the object, and the thread is alive for as long as the server runs. So the object, and everything it holds, stays in memory.
+
+**The fix: throw the note away when the request ends.** Call `remove()` in a `finally` block, so it happens even when the request fails:
+
+```java
+void handleRequest(Request request) {
+    try {
+        CURRENT.set(new UserContext(request));
+        // ...
+    } finally {
+        CURRENT.remove();     // pooled threads live on; the value must not
+    }
+}
+```
+
 
 ## How to diagnose it
 
-The key sign is not "memory is high". A healthy Java heap goes up and down in a sawtooth, because the collector keeps freeing garbage. What matters is **how much is left after a collection**.
+The key sign is not "memory is high". A healthy Java heap goes up and down, because the collector keeps freeing garbage. What matters is **how much is left after a collection**.
 
-**1. Watch the floor, not the peak.** Turn on GC logging with `-Xlog:gc` (JDK 9 and later). Each `Pause` line shows heap size before and after, such as `640M->610M`. Watch the number after the arrow. If it climbs steadily day after day, you have a leak. If it is flat and only the peaks are high, you have a sizing problem instead.
+**1. Watch the floor, not the peak.** Turn on GC logging with `-Xlog:gc` (JDK 9 and later). Each `Pause` line shows the heap size before and after a collection, such as `640M->610M`. That means 640 MB was in use before the collector ran and 610 MB after, so it freed only 30 MB. The second number is what the program is still holding on to, so watch the number after the arrow. If it climbs steadily day after day, you have a leak. If it is flat and only the peaks are high, you have a sizing problem instead.
 
-**2. Compare two class histograms.** A histogram lists how many instances of each class are alive. Take one, wait ten minutes under load, take another:
+**2. Compare two class histograms.** A class histogram is a table of what is in memory right now: one row per class, with how many objects of that class exist and how much memory they use together. For example, `com.shop.Product` with 1,200,000 objects using 90 MB. Take one, wait ten minutes under load, take another:
 
 ```bash
 jcmd <pid> GC.class_histogram > before.txt
@@ -122,94 +156,79 @@ jcmd <pid> GC.heap_dump /tmp/heap.hprof
 # -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/dumps
 ```
 
-Open it in a tool such as Eclipse Memory Analyzer (MAT) or VisualVM. In MAT, start with the Leak Suspects report. Then open the **dominator tree**, which lists objects by how much memory each one alone keeps alive.
+Open it in a heap analyzer, such as Eclipse Memory Analyzer (MAT). It does two things for you:
 
-Right-click a suspicious object, choose **Path to GC Roots**, then **exclude weak/soft references**. That path is the answer: it shows the exact chain of references, starting from a root, that keeps the object alive. In the static map example it ends at `ProductService.CACHE`.
+- It shows which objects take the most memory. In our example, that is the map and the thousands of products inside it.
+- For any object, it shows **who is holding it**: the chain of references from a root, such as a `static` variable, down to that object. That chain is the answer, because it shows exactly what stops the collector from freeing it. In the static map example it starts at `ProductService.CACHE`.
+
+MAT calls this feature "Path to GC Roots", meaning the path from the object back to a root. Once you know who holds the object, you know what to fix.
 
 > [!WARNING]
 > A heap dump contains everything in memory: passwords, tokens, personal data. Treat the file like a secret. Do not attach it to a public ticket or upload it to an online tool.
 
-## Fix 1: put a limit on the cache
+## Another option: weak references, with care
 
-If something is meant to be a cache, give it a size limit, so old entries are evicted. A least-recently-used (LRU) map is enough for a start (this snippet needs Java 9 or later):
-
-```java
-static <K, V> Map<K, V> lruCache(int maxEntries) {
-    return Collections.synchronizedMap(
-        new LinkedHashMap<>(16, 0.75f, true) {          // true = order by last access
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-                return size() > maxEntries;
-            }
-        });
-}
-```
-
-In real services, most people use a library such as Caffeine, which adds expiry and statistics. The idea is the same: **every cache needs a maximum size, or a time limit, or both**.
-
-## Fix 2: remove what you register
-
-Anything that adds itself to a long-lived structure must take itself out when it is finished. Tie that to a clear lifecycle: unregister in `close()`, use `try`-with-resources, or let a framework own the lifecycle.
-
-For `ThreadLocal`, always clear the value in a `finally` block:
+Start with something that surprises many beginners. Put an object in a normal map, then stop using it:
 
 ```java
-void handleRequest(Request request) {
-    try {
-        CURRENT.set(new UserContext(request));
-        // ...
-    } finally {
-        CURRENT.remove();     // pooled threads live on; the value must not
-    }
-}
+Map<User, Session> sessions = new HashMap<>();
+
+User user = new User("asha");
+sessions.put(user, new Session());
+
+user = null;   // you are done with this user
 ```
 
-## Fix 3: weak references, with care
+You might expect Java to free the `User` now, because your variable is `null`. It does not. **The map still points at it**, and a map's reference is a strong one, so the object stays alive. Setting your own variable to `null` removes only your reference. The map's reference is still there, and that is the leak.
 
-A **weak reference** does not keep its object alive. If only weak references reach it, the collector frees it. `WeakHashMap` uses weak keys, so an entry disappears when nothing else holds the key.
+A **weak reference** is a reference that does not count. If the only references left to an object are weak ones, the collector is allowed to free it.
+`WeakHashMap` is a map that holds its **keys** weakly. Use it in the same example and the entry cleans itself up:
 
-It is useful, but it is easy to get wrong. If the **value** in the map refers back to its own key, the key is reachable through the value, so it is never freed and the entry stays forever. Keys that stay strongly reachable elsewhere, such as string literals, are never collected either, and `WeakHashMap` is not thread-safe.
+```java
+Map<User, Session> sessions = new WeakHashMap<>();
 
-Weak references are also cleared at the collector's convenience, so an entry can vanish earlier than you expect. They suit "attach extra data to an object while that object lives". They do not suit a general cache.
+User user = new User("asha");
+sessions.put(user, new Session());
+
+user = null;   // nothing else points at the User
+// after the next garbage collection, the entry is gone from the map
+```
+
+The key point: the entry is removed only when **nothing else** points at the key. While other code still uses `user`, the entry stays.
+
+It is useful, but there are two traps:
+
+**1. The value points at the key.** The map holds the value strongly. If the value holds the key, the key stays alive through it, and the entry never goes away:
+
+```java
+sessions.put(user, new Session(user));   // the Session holds the user
+```
+
+**2. It is not a cache.** The entry disappears as soon as nothing else holds the key, which can be a few seconds after you add it. Use `WeakHashMap` only to attach extra data to an object that something else owns, so the data goes away together with that object.
 
 ## When the fix goes wrong
 
-The leak is the cause, so anything that only hides it will fail later. Here are the three tempting ones.
-
-**1. Raising `-Xmx`.** It looks right because the crash said "out of memory". But a leak does not stop growing when you give it more room. Take the numbers from the example: the heap held 400 MB after day 1 and 3.4 GB after day 5, so it grew about 750 MB a day. A 4 GB heap fills in about 5 days. An 8 GB heap fills in about 10 days. You bought five days, and you pay for twice the memory. The heap dump you will need is also twice as big, and each full collection has more live objects to walk.
+**Raising `-Xmx`.** It looks right because the crash said "out of memory". But a leak does not stop growing when you give it more room. In our example the heap grew about 750 MB a day, so doubling it from 4 GB to 8 GB only buys about five more days.
 
 **What to do instead.** Treat a bigger heap as a short delay while you find what holds the memory, using a heap dump.
-
-**2. Restarting every night.** A restart empties the heap, so the crash never arrives. That works as long as the leak needs more than a day to fill the heap. At 750 MB a day and 4 GB, it does. But leaks grow with traffic. If traffic becomes 5 times larger (a sale, a new customer), the leak grows to about 3.75 GB a day. The heap then fills in under a day (about 3.6 GB of room divided by 3.75 GB a day is 0.96 days), so the crash comes before the restart, at the busiest time.
-
-**What to do instead.** Use the restart only to buy time, with an alert on the heap level after each collection (the floor). Then fix the leak.
-
-**3. A "bounded" cache with a bad key.** A cache needs a limit, so you add one of 10,000 entries. Good. But look at the key. If it holds something unique per request, such as a timestamp, no request ever finds an old entry. Every call is a miss and goes to the database as before. The cache is always full of entries nobody will ask for again. Memory stops growing, so the leak looks fixed, but you now have a cache that does nothing and a database that gets just as much work.
-
-**What to do instead.** Build the key only from what identifies the data, such as the product id. Then measure the hit rate, which is the share of lookups answered from the cache. Caffeine reports it when you enable `recordStats()`. A hit rate near zero means the key or the limit is wrong.
-
-Smaller trap:
-
-- **Capping a cache too high.** A limit of 50 million entries is a limit in name only. Size it from your memory budget: entries multiplied by average entry size.
 
 ## Which should you use?
 
 | Situation | Reach for |
 |---|---|
 | A map used as a cache | **A bounded cache** (Caffeine or an LRU map), with a size limit and often an expiry |
-| A component registers with something long-lived | **Unregister on close.** Tie it to a lifecycle |
 | Per-thread state on a thread pool | **`ThreadLocal` with `remove()` in `finally`,** or avoid it and pass values explicitly |
 | Extra data attached to objects owned elsewhere | **`WeakHashMap`,** after checking values do not refer to the keys |
 | You cannot find the leak | **A heap dump and "Path to GC Roots".** Do not guess |
 
 If you are not sure where to start, start with the heap dump. It shows who is holding the memory in a few minutes, and guessing can take days.
 
-A queue that grows without limit is a close cousin of this leak. [The unbounded queue post](/posts/unbounded-thread-pool-queue/) shows the same slow death from a different source.
+A queue that grows without limit is a close cousin of this leak. It is the same slow death from a different source. So is a leaked database connection: [the connection pool post](/posts/connection-pool-exhausted/) shows the same pattern with connections instead of memory.
 
 ## The takeaway
 
 1. The collector frees what **nothing can reach**. It does not know what you still need.
 2. A Java leak is an unneeded object that something still **strongly references**.
-3. The three usual suspects: **static maps** that only grow, **listeners** never removed, and **`ThreadLocal`** values on pooled threads.
+3. Two usual suspects: **static maps** that only grow, and **`ThreadLocal`** values never removed on pooled threads.
 4. The sign of a leak is the heap size **after each GC** rising over time, not a high peak.
 5. Find it with a **class histogram** (what grows) and a **heap dump** (who holds it). Then fix the ownership, not the heap size.

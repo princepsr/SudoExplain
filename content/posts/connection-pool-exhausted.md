@@ -37,7 +37,7 @@ The pool size is small on purpose. HikariCP, the usual Java pool, defaults to 10
 
 ## Failure 1: a connection leak, and the fix
 
-The simplest cause is a connection that is borrowed and never returned. Look at this code:
+The simplest cause is a connection that is borrowed and never returned. It is the connection version of a [Java memory leak](/posts/java-memory-leak/): something is taken and never given back. Look at this code:
 
 ```java
 Connection c = dataSource.getConnection();
@@ -251,7 +251,6 @@ Two pitfalls look like sensible reactions. Both make an outage worse.
 **1. Raising the pool size.** When requests wait for connections, a bigger pool looks like the obvious cure. But more connections do not make the database faster. Past a point they make it slower, because it spends time switching between them. And as Failure 3 showed, a bigger pool on every server can push the total past the database limit.
 
 If the real problem is a leak, a bigger pool only delays the failure. Say a bug leaks one connection per failed request, and 5 requests fail each second. A pool of 10 is gone in 2 seconds. A pool of 200 is gone in 200 / 5 = 40 seconds. The outage is the same, just later.
-
 **What to do instead:** find out why connections are held, using the pool metrics and a thread dump. Then fix the leak or the long transaction.
 
 **2. Retrying on pool timeout.** The error says "try again later", so a retry looks natural. But the retry asks the same full pool for a connection. Say the pool has 10 connections, all busy, and 100 requests are waiting. They time out, and each is retried twice more, so 3 attempts each. Up to 3 x 100 = 300 requests now queue for the same 10 connections. The queue gets longer exactly when the system is struggling, and the pool may never catch up.
