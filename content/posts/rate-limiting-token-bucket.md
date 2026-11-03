@@ -2,7 +2,7 @@
 title: Rate limiting an API: token bucket vs fixed window
 date: 2026-11-01
 description: How one buggy client can slow an API for everyone, how to find the noisy caller, and how token buckets and shared counters keep a fair limit.
-tags: backend, apis, scaling
+tags: apis, scaling, redis
 draft: true
 ---
 

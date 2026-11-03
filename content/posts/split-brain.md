@@ -2,7 +2,7 @@
 title: Split brain: when two servers both think they lead
 date: 2026-11-01
 description: What split brain is, how a network partition makes two servers both act as primary, and how quorum, fencing, and a witness node prevent it.
-tags: distributed-systems, reliability, databases
+tags: distributed-systems, databases
 draft: true
 ---
 

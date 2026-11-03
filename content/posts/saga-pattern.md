@@ -2,7 +2,7 @@
 title: Saga pattern: when step 3 of 4 fails across services
 date: 2026-11-01
 description: What happens when an action spanning several services fails halfway, why you cannot just roll back, and how sagas and compensating actions restore consistency.
-tags: system-design, microservices, reliability
+tags: system-design, microservices
 draft: true
 ---
 

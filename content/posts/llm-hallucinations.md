@@ -2,7 +2,7 @@
 title: "LLM hallucinations: validate AI output in production"
 date: 2026-11-01
 description: LLM hallucinations in production: why models invent answers and how to validate AI output with grounding, schemas, fact checks and human review.
-tags: AI, LLM, reliability
+tags: LLM
 draft: true
 ---
 

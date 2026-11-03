@@ -2,7 +2,7 @@
 title: "Java OOMKilled in Docker (exit code 137): why it dies"
 date: 2026-11-01
 description: Java OOMKilled in Docker means the kernel killed the container (exit code 137) while the heap looked healthy. Here is how to find and fix it.
-tags: java, docker, kubernetes
+tags: java, jvm, docker, kubernetes
 draft: true
 ---
 

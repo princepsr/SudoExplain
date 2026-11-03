@@ -2,7 +2,7 @@
 title: Race condition in Java: check-then-act explained
 date: 2026-11-01
 description: Why code that looks correct loses updates or creates duplicates under load, how to reproduce a race condition, and how to fix it on one server and across many.
-tags: java, concurrency, debugging
+tags: java, concurrency
 draft: true
 ---
 

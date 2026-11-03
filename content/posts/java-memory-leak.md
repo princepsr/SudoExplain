@@ -2,7 +2,7 @@
 title: Java memory leak: strong references and heap dumps
 date: 2026-11-01
 description: Java has a garbage collector, yet services die with OutOfMemoryError. How strong references cause leaks, how to find them in a heap dump, and the fixes.
-tags: java, memory, debugging
+tags: java, jvm
 draft: true
 ---
 

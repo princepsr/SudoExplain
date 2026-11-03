@@ -2,7 +2,7 @@
 title: Expired TLS certificate: why it takes the site down
 date: 2026-11-01
 description: Why an expired TLS certificate takes a site or API offline with no code change, how to check expiry with openssl, and how to automate renewal.
-tags: TLS, security, operations
+tags: TLS, networking, security
 draft: true
 ---
 

@@ -2,7 +2,7 @@
 title: Idempotency keys: stop retries from charging twice
 date: 2026-11-01
 description: How a timeout and a harmless-looking retry charge a customer twice, how to find the duplicate, and how idempotency keys make retries safe.
-tags: reliability, apis, payments
+tags: apis, payments
 draft: true
 ---
 

@@ -2,7 +2,7 @@
 title: "CORS error: no Access-Control-Allow-Origin header, explained"
 date: 2026-11-01
 description: Why an API call works in curl and Postman but fails in the browser with a CORS error, how preflight requests work, and how to fix the headers.
-tags: CORS, web, security
+tags: CORS, security
 draft: true
 ---
 

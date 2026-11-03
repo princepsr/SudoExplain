@@ -1,10 +1,12 @@
 ---
-title: Java and Spring problems explained from real failures
-description: Memory leaks, thread pools, connection pools, slow queries and other Java and Spring Boot problems, explained from the symptom to the fix.
+title: Java production problems: memory, threads and pools
+description: Java and Spring Boot problems in production: memory leaks, thread pools, connection pools, GC pauses and slow queries, from symptom to measured fix.
 ---
 
-Most Java problems in production look the same from the outside: the service gets slow, memory climbs, or requests start timing out. The causes are usually small settings or habits that nobody noticed until traffic arrived.
+A Java service that ran fine for weeks starts to crawl. Memory climbs until the container is killed, requests time out while the CPU sits idle, or a page that took 50 ms now takes ten seconds. The code did not change. Traffic did.
 
-Each post here starts from a symptom, shows how to confirm the cause with the tools the JDK and Spring already give you, and then walks through the fixes and what each one costs.
+This page collects posts on the failures that appear when a Java or Spring Boot application meets real load: leaked connections and exhausted pools, threads waiting on each other, queries multiplied by an ORM, and a JVM that pauses to clean up memory. You will meet errors such as `OutOfMemoryError`, `Connection is not available` and exit code 137.
 
-You do not need to know the internals first. The basics are explained inside each post, in plain language, before the failure.
+Each post starts with the symptom, explains the few Java and Spring concepts you need in plain language, and shows how to confirm the cause with tools you already have: a thread dump, a heap dump, GC logs and the query log.
+
+Read it if you build or run Java services and want to find a problem by measuring, not by guessing.

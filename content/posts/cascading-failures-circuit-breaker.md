@@ -2,7 +2,7 @@
 title: Cascading failures: timeouts, retries, circuit breakers
 date: 2026-11-01
 description: How one slow dependency, plus missing timeouts and eager retries, takes down every service that calls it, and the four defenses that stop the spread.
-tags: reliability, system-design, scaling
+tags: system-design, microservices
 draft: true
 ---
 

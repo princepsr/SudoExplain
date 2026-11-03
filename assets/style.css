@@ -955,6 +955,15 @@ a:hover {
   color: var(--muted);
 }
 
+.search-group {
+  margin: 2rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 mark {
   padding: 0 0.12em;
   border-radius: 3px;

@@ -2,7 +2,7 @@
 title: RAG wrong answers: why retrieval fails and how to fix it
 date: 2026-11-01
 description: Why a chatbot over your documents gives confident wrong answers, how bad chunks and missed retrieval cause it, and how to measure and fix each part.
-tags: AI, RAG, LLM
+tags: LLM, RAG
 draft: true
 ---
 

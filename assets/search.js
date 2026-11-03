@@ -1,5 +1,7 @@
 // Client-side search over /search-index.json (built by build.mjs). No dependencies.
-// Every term must match somewhere in a post; title and tag matches rank higher.
+// Every term must match the start of a word in a post ("lock" finds "locks" but not "block").
+// Title, tags and section headings rank above the description, and the description above the body.
+// Posts that match only in the body text are listed in a separate group after the stronger matches.
 // Results are built with DOM methods only, so post text can never inject markup.
 (() => {
   const box = document.getElementById('search-box');
@@ -17,9 +19,46 @@
 
   const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+  // Words that would otherwise have to appear in every result ("why the cache is stale").
+  const STOP_WORDS = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'on', 'is', 'it', 'my', 'how', 'why', 'what', 'do', 'does', 'for', 'with']);
+  const isWordChar = (ch) => /[a-z0-9]/.test(ch);
+
+  // Search terms: lower case, with stop words dropped.
+  const toTerms = (query) => {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const useful = words.filter((w) => !STOP_WORDS.has(w));
+    return useful.length ? useful : words;
+  };
+
+  // "pools" should also find the whole word "pool", but "cors" must not become "cor" and find "correlation".
+  const singular = (term) => (term.length > 4 && term.endsWith('s') && !/(ss|us|is)$/.test(term) ? term.slice(0, -1) : '');
+
+  // Position of the first occurrence of `term` at the start of a word, or -1.
+  const wordStart = (haystack, term) => {
+    for (let at = haystack.indexOf(term); at !== -1; at = haystack.indexOf(term, at + 1)) {
+      if (at === 0 || !isWordChar(haystack[at - 1])) return at;
+    }
+    return -1;
+  };
+
+  // Where `term` matches in `haystack`: at the start of a word, or as the exact singular of a plural term. -1 if it does not.
+  const locate = (haystack, term) => {
+    const at = wordStart(haystack, term);
+    if (at >= 0) return at;
+    const one = singular(term);
+    if (!one) return -1;
+    for (let i = haystack.indexOf(one); i !== -1; i = haystack.indexOf(one, i + 1)) {
+      const before = i === 0 || !isWordChar(haystack[i - 1]);
+      const after = i + one.length >= haystack.length || !isWordChar(haystack[i + one.length]);
+      if (before && after) return i;
+    }
+    return -1;
+  };
+
   const prepare = (entry) => ({
     ...entry,
     lowTitle: entry.title.toLowerCase(),
+    lowHeadings: (entry.headings || []).join(' ').toLowerCase(),
     lowDescription: entry.description.toLowerCase(),
     // Tags are shown as "System design" but readers may type "system-design", so match both spellings.
     lowTags: entry.tags.flatMap((t) => [t, t.replace(/\s+/g, '-')]).join(' ').toLowerCase(),
@@ -49,20 +88,23 @@
     for (const entry of index) {
       let score = 0;
       let matchesAll = true;
+      let strong = true; // every term appears in the title, tags, a heading or the description
       for (const term of terms) {
-        const inTitle = entry.lowTitle.includes(term);
-        const inTags = entry.lowTags.includes(term);
-        const inDescription = entry.lowDescription.includes(term);
-        const inText = entry.lowText.includes(term);
-        if (!(inTitle || inTags || inDescription || inText)) {
+        const inTitle = locate(entry.lowTitle, term) >= 0;
+        const inTags = locate(entry.lowTags, term) >= 0;
+        const inHeadings = locate(entry.lowHeadings, term) >= 0;
+        const inDescription = locate(entry.lowDescription, term) >= 0;
+        const inText = locate(entry.lowText, term) >= 0;
+        if (!(inTitle || inTags || inHeadings || inDescription || inText)) {
           matchesAll = false;
           break;
         }
-        score += (inTitle ? 5 : 0) + (inTags ? 3 : 0) + (inDescription ? 2 : 0) + (inText ? 1 : 0);
+        if (!(inTitle || inTags || inHeadings || inDescription)) strong = false;
+        score += (inTitle ? 10 : 0) + (inTags ? 6 : 0) + (inHeadings ? 4 : 0) + (inDescription ? 3 : 0) + (inText ? 1 : 0);
       }
-      if (matchesAll) hits.push({ entry, score });
+      if (matchesAll) hits.push({ entry, score, strong });
     }
-    return hits.sort((a, b) => b.score - a.score || (a.entry.date < b.entry.date ? 1 : -1));
+    return hits.sort((a, b) => b.strong - a.strong || b.score - a.score || (a.entry.date < b.entry.date ? 1 : -1));
   };
 
   // Text with every search term wrapped in <mark>, built from text nodes only.
@@ -81,9 +123,9 @@
   };
 
   const snippet = (entry, terms) => {
-    const hasTerm = (s) => terms.some((t) => s.includes(t));
+    const hasTerm = (s) => terms.some((t) => locate(s, t) >= 0);
     if (hasTerm(entry.lowDescription)) return entry.description;
-    const positions = terms.map((t) => entry.lowText.indexOf(t)).filter((p) => p >= 0);
+    const positions = terms.map((t) => locate(entry.lowText, t)).filter((p) => p >= 0);
     if (!positions.length) return entry.description;
     const at = Math.min(...positions);
     const start = Math.max(0, at - 70);
@@ -140,14 +182,35 @@
       showAll();
       return;
     }
-    const terms = query.toLowerCase().split(/\s+/);
-    const matcher = new RegExp(terms.map(escapeRegExp).join('|'), 'gi');
+    const terms = toTerms(query);
+    const pattern = terms.flatMap((t) => [t, singular(t)]).filter(Boolean).map(escapeRegExp).join('|');
+    // Highlight only where a word starts with a term, like the search itself; older browsers without lookbehind highlight anywhere.
+    let matcher;
+    try {
+      matcher = new RegExp(`(?<![a-z0-9])(?:${pattern})`, 'gi');
+    } catch {
+      matcher = new RegExp(pattern, 'gi');
+    }
     const hits = find(terms);
 
-    const list = document.createElement('ul');
-    list.className = 'post-list';
-    for (const hit of hits) list.append(resultItem(hit, terms, matcher));
-    results.replaceChildren(list);
+    // Strong matches first; posts that only mention the words in their text go in a second, labelled group.
+    const makeList = (items) => {
+      const list = document.createElement('ul');
+      list.className = 'post-list';
+      for (const hit of items) list.append(resultItem(hit, terms, matcher));
+      return list;
+    };
+    const strong = hits.filter((h) => h.strong);
+    const weak = hits.filter((h) => !h.strong);
+    const parts = [];
+    if (strong.length) parts.push(makeList(strong));
+    if (weak.length) {
+      const label = document.createElement('h2');
+      label.className = 'search-group';
+      label.textContent = strong.length ? 'Also mentioned in the text' : 'Mentioned in the text';
+      parts.push(label, makeList(weak));
+    }
+    results.replaceChildren(...parts);
 
     status.textContent = hits.length
       ? `${hits.length} result${hits.length === 1 ? '' : 's'} for "${query}"`

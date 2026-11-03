@@ -2,7 +2,7 @@
 title: Integer ID overflow: when the primary key runs out
 date: 2026-11-01
 description: Why inserts suddenly fail when an auto-increment INT primary key hits 2147483647, how to check your headroom, and how to move to bigint safely.
-tags: databases, java, debugging
+tags: databases, java
 draft: true
 ---
 

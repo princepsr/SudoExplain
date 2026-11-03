@@ -2,7 +2,7 @@
 title: "Runaway AI agent: cap tool loops before they cost you"
 date: 2026-11-01
 description: How a runaway AI agent loops on tools and burns money, and how to cap it with step, cost and repeat limits, approvals and a kill switch.
-tags: AI, agents, reliability
+tags: LLM, agents
 draft: true
 ---
 

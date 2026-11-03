@@ -2,7 +2,7 @@
 title: Poison message: how one bad message blocks a queue
 date: 2026-11-01
 description: How one malformed message can stop a whole queue consumer, how to spot it from lag and repeating errors, and how retries and dead-letter queues fix it.
-tags: messaging, reliability, backend
+tags: messaging, kafka
 draft: true
 ---
 

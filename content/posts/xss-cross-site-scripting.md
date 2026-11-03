@@ -2,7 +2,7 @@
 title: XSS (cross-site scripting): when input runs as code
 date: 2026-11-01
 description: How cross-site scripting (XSS) turns a comment or search term into code in other users' browsers, how to find it in your own site, and how to fix it.
-tags: XSS, security, web
+tags: XSS, security
 draft: true
 ---
 

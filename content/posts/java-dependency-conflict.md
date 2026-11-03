@@ -2,7 +2,7 @@
 title: NoSuchMethodError in production: Java dependency conflicts
 date: 2026-11-01
 description: NoSuchMethodError in production usually means two versions of a library are on the classpath. Learn to find the wrong jar and fix the conflict.
-tags: java, maven, debugging
+tags: java, maven
 draft: true
 ---
 

@@ -2,7 +2,7 @@
 title: "nginx 502 Bad Gateway: idle timeout mismatch behind a proxy"
 date: 2026-11-01
 description: Why a proxy or load balancer returns an occasional 502 Bad Gateway when the app closes idle connections first, and how to fix the keep-alive timeouts.
-tags: networking, nginx, debugging
+tags: networking, nginx
 draft: true
 ---
 

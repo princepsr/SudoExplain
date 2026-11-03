@@ -2,7 +2,7 @@
 title: Zero-downtime database migration: add a column safely
 date: 2026-11-01
 description: How a routine ALTER TABLE can stall a busy app, and how lock_timeout, expand and contract, and batched backfills give a zero-downtime migration.
-tags: databases, migrations, deployment, postgresql
+tags: databases, migrations, postgresql
 draft: true
 ---
 

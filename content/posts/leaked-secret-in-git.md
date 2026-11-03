@@ -2,7 +2,7 @@
 title: Leaked secret in Git: what to do in the first hour
 date: 2026-11-01
 description: A cloud key or password was committed to Git. Learn why deleting it is not enough, what to do first in the hour that follows, and how to prevent a repeat.
-tags: security, git, operations
+tags: security, git
 draft: true
 ---
 

@@ -2,7 +2,7 @@
 title: Kafka consumer rebalance storm: why processing stalls
 date: 2026-11-01
 description: Why a Kafka consumer group keeps rebalancing so lag grows and nobody makes progress, how to diagnose a rebalance storm, and how to stop it.
-tags: kafka, messaging, reliability
+tags: kafka, messaging
 draft: true
 ---
 

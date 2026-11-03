@@ -808,6 +808,8 @@ function searchIndex(posts) {
     url: `${cfg.basePath}/posts/${p.slug}/`,
     description: p.description,
     tags: p.tags,
+    // Section titles: a match here means the post has a section about the term, which beats a passing mention.
+    headings: [...p.html.matchAll(/<h2 id="[^"]+">(.*?)<\/h2>/g)].map(([, inner]) => plainText(inner, 200)),
     date: isoDay(p.date),
     text: plainText(p.html),
   }));

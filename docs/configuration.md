@@ -68,7 +68,7 @@ description: How caches go wrong in production: stale data, stampedes and incons
 A short introduction that says what the topic covers and who it is for.
 ```
 
-The page stays `noindex` and out of the sitemap until the topic has two published posts, so a hub never appears as a thin list of one link. Do not link to specific posts in the introduction, because the post list below it is built automatically and a link to a draft would break. Introductions exist for caching, java, databases, scaling, reliability, security, performance and debugging.
+The page stays `noindex` and out of the sitemap until the topic has two published posts, so a hub never appears as a thin list of one link. Do not link to specific posts in the introduction, because the post list below it is built automatically and a link to a draft would break. Introductions exist for databases, java, kubernetes, concurrency, security, scaling, system-design, caching, performance, apis, networking, authentication, messaging, distributed-systems and llm. A hub only goes live once the topic has two published posts.
 
 ### Link-preview card
 

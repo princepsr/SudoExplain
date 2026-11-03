@@ -2,7 +2,7 @@
 title: Prompt injection: when a web page hijacks your AI
 date: 2026-11-01
 description: How text hidden in a web page, email or document can make an AI assistant ignore its instructions, why no complete fix is known, and how to limit the damage.
-tags: AI, security, LLM
+tags: LLM, security
 draft: true
 ---
 

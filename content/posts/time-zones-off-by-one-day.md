@@ -2,7 +2,7 @@
 title: Time zones in Java: why dates are off by one day
 date: 2026-11-01
 description: Why birthdays shift a day and daily reports miss late orders, the difference between an instant and a calendar date, and how to handle time zones in Java.
-tags: java, dates, debugging
+tags: java, dates
 draft: true
 ---
 

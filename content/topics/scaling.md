@@ -1,10 +1,22 @@
 ---
-title: Scaling problems explained from real production failures
-description: Why systems fail when traffic grows: load balancers, autoscaling, retries, queues and limits, explained from the symptom to the fix.
+title: Scaling problems: load balancers, autoscaling and limits
+description: What breaks when a system grows from one server to many: sessions behind load balancers, stale caches, autoscaling that reacts late, retries and rate limits.
 ---
 
-Systems rarely fail at their average load. They fail when traffic spikes, when one slow part drags the rest down, or when the fix for one problem creates another.
+Everything works with one server. Add a second behind a load balancer and users are logged out, servers disagree on data, or a scheduled job runs twice. These posts explain what changes when a system grows, and why.
 
-The posts below start from a failure you may have seen, such as users logged out behind a load balancer or an autoscaler that reacts too late. Each one explains the basics first, shows how to confirm the cause, then compares the fixes and when each one goes wrong.
+**What you will learn**
 
-Adding more servers is only one tool. Many of these problems are fixed by changing how the servers share state, wait or retry.
+- Why sessions break behind a load balancer, and the options for fixing it
+- How caches on different servers become stale and inconsistent
+- Why autoscaling that reacts late still lets a traffic spike cause an outage
+- How to stop a job running on every server at once
+- How rate limits and read replicas help, and what they cost
+
+**How it helps you**
+
+You learn the one idea behind most of these failures: state that used to live in one place now lives in several, and the copies disagree. Once you see that, you can predict scaling problems in a design before they reach production.
+
+**Who it is for**
+
+Developers moving from one server to several, or whose system behaves differently under load than in testing. Each post explains the basics first.

@@ -1,10 +1,12 @@
 ---
-title: Database problems explained from real production failures
-description: Slow queries, deadlocks, lock waits, risky migrations and replication lag, explained from the symptom to the diagnosis and the fix.
+title: Database performance problems: slow queries to deadlocks
+description: Why database queries get slow in production and how to fix them: missing indexes, deadlocks, lock waits, replica lag and risky migrations, with EXPLAIN.
 ---
 
-A database is shared by every request your system handles, so one bad query or one long lock can slow down everything else. These failures are often hard to see, because the database itself keeps running.
+The query was instant in development. A few months and a few million rows later, the same page takes four seconds and the database CPU stays high. Nothing in the code changed, which is why these failures are so confusing.
 
-The posts below start from a symptom, such as a page that gets slower as data grows or a migration that blocks writes. They show how to confirm the cause, what the fixes are, and what each fix can break.
+This page collects posts on database problems that only appear with real data and real traffic: missing indexes, queries an ORM multiplies without you noticing, transactions that block each other, replicas that serve old data, and migrations that lock a table while users wait.
 
-The examples use common relational databases, and each post says where the behaviour differs between products.
+The examples use PostgreSQL and MySQL, and each post says where the two behave differently. You will learn to read an `EXPLAIN` plan, to spot a lock wait, and to tell whether a fix helps by measuring the query before and after.
+
+Read it if you write SQL or use an ORM and want to understand why a database slows down, and what each common fix costs.

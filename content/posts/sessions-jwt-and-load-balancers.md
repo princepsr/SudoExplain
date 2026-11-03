@@ -2,7 +2,7 @@
 title: Sessions, JWTs and load balancers explained
 date: 2026-10-31
 description: A beginner's walkthrough: what sessions and JWTs are, what breaks when you add a second server, how to diagnose it, and how to fix it.
-tags: authentication, web, system-design, scaling
+tags: authentication, system-design, scaling
 ---
 
 ## The question

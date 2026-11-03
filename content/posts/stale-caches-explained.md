@@ -2,7 +2,7 @@
 title: Stale cache and cache stampede: why servers disagree
 date: 2026-11-01
 description: Why two servers give different answers, how to spot a stale cache, three ways to fix it, and how a cache stampede can follow.
-tags: caching, system-design, scaling, web
+tags: caching, system-design, scaling
 ---
 
 ## The question

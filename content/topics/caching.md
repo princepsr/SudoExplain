@@ -1,10 +1,12 @@
 ---
-title: Caching explained through real production failures
-description: How caches go wrong in production: stale data, stampedes and inconsistent servers, with the symptoms, the causes and the fixes.
+title: Caching problems: stale data, stampedes and fixes
+description: How caches go wrong in production: stale data, two servers disagreeing, cache stampedes and bad invalidation, with how to confirm the cause and fix it.
 ---
 
-A cache keeps a copy of data somewhere faster than the original. That one idea is the source of both its speed and its bugs, because a copy can fall out of date, and a popular copy can disappear at the worst moment.
+A cache makes a system fast by keeping a copy of data somewhere closer. That same copy is the source of its worst bugs. It can be out of date, different on each server, or gone at the moment a thousand requests need it.
 
-The posts below start from a failure you can observe, such as two servers showing different data or a database overwhelmed when a popular key expires. Each one explains what a cache is doing, how to confirm the cause, and which fix suits which situation.
+This page collects posts on the failures that come with caching: users seeing old data after an update, two servers giving different answers, a popular entry expiring and sending every request to the database at once, and the old saying that cache invalidation is one of the hard problems in computing.
 
-If you are new to the topic, read the first post for the basics, then the failure posts in any order.
+Each post starts from something you can observe, explains what the cache is actually doing, and shows how to confirm the cause. Then it compares the fixes, including when a fix creates a new problem, for example a shorter expiry that causes a stampede.
+
+Read it if you use Redis, a CDN, a browser cache or an in-memory cache and want to know why the data you see is not the data you expect.
