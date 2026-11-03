@@ -1,8 +1,8 @@
 ---
-title: Scheduled job runs multiple times on multiple servers
+title: "Spring @Scheduled job runs twice on multiple servers"
 date: 2026-11-01
 description: Why a nightly job fires once per server after you scale out, how to confirm it, and how to make sure it runs exactly once.
-tags: scaling, backend, java
+tags: scaling, backend, java, spring-boot
 draft: true
 ---
 

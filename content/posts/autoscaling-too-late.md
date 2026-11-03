@@ -1,5 +1,5 @@
 ---
-title: "Autoscaling too late: why spikes still cause outages"
+title: "Kubernetes autoscaling too late: why spikes cause outages"
 date: 2026-11-01
 description: Why autoscaling too late still causes outages when traffic spikes, how the Kubernetes autoscaler timeline adds up to minutes, and how to fix it.
 tags: scaling, kubernetes, performance

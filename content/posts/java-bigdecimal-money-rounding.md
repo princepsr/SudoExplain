@@ -1,5 +1,5 @@
 ---
-title: Floating point and money in Java: BigDecimal rounding
+title: "Java BigDecimal vs double for money: rounding errors"
 date: 2026-11-01
 description: Why doubles cannot hold money, how invoices end up one cent off between systems, and how to store and round amounts correctly in Java.
 tags: java, money, debugging

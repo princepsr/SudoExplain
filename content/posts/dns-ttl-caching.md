@@ -1,5 +1,5 @@
 ---
-title: DNS caching: why traffic still hits the old server
+title: "DNS TTL: why traffic still hits the old server"
 date: 2026-11-01
 description: Why traffic still reaches the old server after a DNS change, how TTL and caches at every layer cause it, and how to plan a migration that avoids it.
 tags: DNS, networking, deployment

@@ -2,7 +2,7 @@
 title: Read replica lag: why users do not see their own writes
 date: 2026-11-01
 description: Why a read replica shows old data right after a save, how to measure replication lag, and how read-your-own-writes routing fixes the confusion.
-tags: databases, replication, scaling
+tags: databases, replication, scaling, postgresql
 draft: true
 ---
 

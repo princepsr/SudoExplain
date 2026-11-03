@@ -1,5 +1,5 @@
 ---
-title: Disk full outage: logs, inodes and log rotation
+title: "No space left on device: logs, inodes and log rotation"
 date: 2026-11-01
 description: Why a full disk stops databases and apps, how logs and inodes fill it, and why deleting a log file may not free space until you restart the process.
 tags: operations, linux, logging

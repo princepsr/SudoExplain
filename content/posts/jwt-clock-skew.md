@@ -1,5 +1,5 @@
 ---
-title: JWT clock skew: why valid tokens are not yet valid
+title: "JWT clock skew: why valid tokens say not yet valid"
 date: 2026-11-01
 description: Why valid JWTs are rejected at random as not yet valid or expired, how to confirm clock drift between servers, and how to fix it without weakening security.
 tags: authentication, JWT, debugging

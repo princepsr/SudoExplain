@@ -15,33 +15,33 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 5 | Java | Unbounded thread pool queue: how it hides overload | Executor queue grows until the server dies | unbounded-thread-pool-queue | draft |
 | 6 | Java | Race condition in Java: check-then-act explained | "If absent, put" loses data under load | race-condition-check-then-act | draft |
 | 7 | Java, database | N+1 query problem: why one page runs 500 queries | One page triggers hundreds of queries after a data growth | n-plus-one-query-problem | draft |
-| 8 | Java | Floating point and money in Java: BigDecimal rounding | Floating point and rounding in money | java-bigdecimal-money-rounding | draft |
+| 8 | Java | Java BigDecimal vs double for money: rounding errors | Floating point and rounding in money | java-bigdecimal-money-rounding | draft |
 | 9 | Backend | Cascading failures: timeouts, retries, circuit breakers | One slow dependency takes down every service; retries make it worse | cascading-failures-circuit-breaker | draft |
 | 10 | Backend | Idempotency keys: stop retries from charging twice | A timed-out request retried charges twice | idempotency-key-double-charge | draft |
-| 11 | Backend, scaling | Scheduled job runs multiple times on multiple servers | Scale out and every server runs the cron job | scheduled-job-runs-multiple-times | draft |
+| 11 | Backend, scaling | Spring @Scheduled job runs twice on multiple servers | Scale out and every server runs the cron job | scheduled-job-runs-multiple-times | draft |
 | 12 | Backend | Poison message: how one bad message blocks a queue | One bad message blocks a queue forever | poison-message-dead-letter-queue | draft |
 | 13 | Backend | Rate limiting an API: token bucket vs fixed window | One client in a retry loop floods the API | rate-limiting-token-bucket | draft |
-| 14 | Scaling | Readiness vs liveness probes: why deploys cause errors | A deploy takes the whole site down | readiness-vs-liveness-probes | draft |
+| 14 | Scaling | Kubernetes readiness vs liveness probes: why deploys fail | A deploy takes the whole site down | readiness-vs-liveness-probes | draft |
 | 15 | Backend | Time zones in Java: why dates are off by one day | Everything is off by one day for some users | time-zones-off-by-one-day | draft |
 | 16 | Database | Slow SQL query: missing index, EXPLAIN and fixes | A query that was fast with 1,000 rows takes 30 seconds with 10 million | slow-query-missing-index | draft |
 | 17 | Database | Database deadlocks: two transactions waiting on each other | Two transactions wait for each other | database-deadlocks | draft |
 | 18 | Database | Lost update problem: optimistic locking explained | Two users save the same record; one change vanishes | lost-update-optimistic-locking | draft |
 | 19 | Database | Offset vs keyset pagination: skipped rows, slow pages | Offset paging skips rows and crawls on page 5,000 | offset-vs-keyset-pagination | draft |
 | 20 | Security | Broken access control (IDOR): seeing others' data | Broken access control (changing an ID in the URL) | broken-access-control-idor | draft |
-| 21 | Auth | JWT clock skew: why valid tokens are not yet valid | Clock drift between servers rejects fresh tokens | jwt-clock-skew | draft |
+| 21 | Auth | JWT clock skew: why valid tokens say not yet valid | Clock drift between servers rejects fresh tokens | jwt-clock-skew | draft |
 | 22 | Design | Saga pattern: when step 3 of 4 fails across services | A multi-service action fails halfway (saga pattern) | saga-pattern | draft |
 | 23 | AI | Prompt injection: when a web page hijacks your AI | A web page hijacks the AI assistant that reads it | prompt-injection | draft |
 | 24 | AI | RAG wrong answers: why retrieval fails and how to fix it | A retrieval (RAG) system finds the wrong text | rag-wrong-answers | draft |
 | 25 | AI | LLM token cost: why bills explode and how to cap them | Tokens, context growth and retry loops | llm-token-cost | draft |
 | 26 | Java | Java GC pauses: why latency spikes and how to find them | Stop-the-world pauses freeze requests every few minutes | java-gc-pauses | draft |
-| 27 | Java, containers | Java OOMKilled in Docker: heap is fine, container dies | The container limit kills the JVM although the heap looks healthy | java-docker-oomkilled | draft |
+| 27 | Java, containers | Java OOMKilled in Docker (exit code 137): why it dies | The container limit kills the JVM although the heap looks healthy | java-docker-oomkilled | draft |
 | 28 | Java | Java thread deadlock: find it with a thread dump | Two threads wait for each other's locks and the service hangs | java-thread-deadlock | draft |
-| 29 | Java, backend | Blocked event loop: why one slow call freezes everything | A blocking call on an event-loop thread stalls every request | blocked-event-loop | draft |
+| 29 | Java, backend | Blocked event loop in Netty: why one slow call freezes all | A blocking call on an event-loop thread stalls every request | blocked-event-loop | draft |
 | 30 | Java | NoSuchMethodError in production: Java dependency conflicts | Two library versions on the classpath; it works locally and fails after deploy | java-dependency-conflict | draft |
-| 31 | Networking | DNS caching: why traffic still hits the old server | A DNS change does not take effect because of TTLs and caches (including the JVM's) | dns-ttl-caching | draft |
+| 31 | Networking | DNS TTL: why traffic still hits the old server | A DNS change does not take effect because of TTLs and caches (including the JVM's) | dns-ttl-caching | draft |
 | 32 | Networking, security | Expired TLS certificate: why it takes the site down | A certificate expires unnoticed and every client refuses to connect | expired-tls-certificate | draft |
-| 33 | Web | CORS errors explained: why the browser blocks your API call | The API works in curl but the browser blocks it | cors-errors-explained | draft |
-| 34 | Networking | 502 Bad Gateway: idle timeout mismatch behind a proxy | Random 502s because the proxy reuses a connection the app already closed | 502-bad-gateway-keep-alive | draft |
+| 33 | Web | CORS error: no Access-Control-Allow-Origin header, explained | The API works in curl but the browser blocks it | cors-errors-explained | draft |
+| 34 | Networking | nginx 502 Bad Gateway: idle timeout mismatch behind a proxy | Random 502s because the proxy reuses a connection the app already closed | 502-bad-gateway-keep-alive | draft |
 | 35 | Database | Read replica lag: why users do not see their own writes | A user saves, reloads, and the change is missing | read-replica-lag | draft |
 | 36 | Database, deploy | Zero-downtime database migration: add a column safely | A schema change locks a table and blocks production | zero-downtime-migration | draft |
 | 37 | Database | Integer ID overflow: when the primary key runs out | An INT id column hits its maximum and inserts start failing | integer-id-overflow | draft |
@@ -52,10 +52,10 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 42 | Security | SQL injection: how one quote breaks your login | User input is run as part of a query | sql-injection | draft |
 | 43 | Security | Leaked secret in Git: what to do in the first hour | A password or API key was committed to a repository | leaked-secret-in-git | draft |
 | 44 | Security, web | XSS (cross-site scripting): when input runs as code | Stored user text runs as a script in other users' browsers | xss-cross-site-scripting | draft |
-| 45 | Kubernetes | CrashLoopBackOff: debug a pod that keeps restarting | A container starts, fails and restarts in a loop | crashloopbackoff | draft |
-| 46 | Observability | Correlation IDs: trace one request across services | One failed request is impossible to find among millions of log lines | correlation-id-logging | draft |
-| 47 | Scaling, cloud | Autoscaling too late: why spikes still cause outages | New instances arrive after the traffic spike has already caused errors | autoscaling-too-late | draft |
-| 48 | Operations | Disk full outage: logs, inodes and log rotation | Logs fill the disk and the server stops working | disk-full-outage | draft |
+| 45 | Kubernetes | Kubernetes CrashLoopBackOff: debug a restarting pod | A container starts, fails and restarts in a loop | crashloopbackoff | draft |
+| 46 | Observability | Correlation ID in logs: trace a request across microservices | One failed request is impossible to find among millions of log lines | correlation-id-logging | draft |
+| 47 | Scaling, cloud | Kubernetes autoscaling too late: why spikes cause outages | New instances arrive after the traffic spike has already caused errors | autoscaling-too-late | draft |
+| 48 | Operations | No space left on device: logs, inodes and log rotation | Logs fill the disk and the server stops working | disk-full-outage | draft |
 | 49 | AI | LLM hallucinations: validate AI output in production | The model invents a plausible answer and the system acts on it | llm-hallucinations | draft |
 | 50 | AI | Runaway AI agent: cap tool loops before they cost you | An agent calls tools in a loop with no limit | runaway-ai-agent | draft |
 | 51 | Database | Slow LIKE '%text%' search: fix it with a GIN index | A search box ignores the index and scans the whole table | like-wildcard-search-gin-index | draft (outline only) |

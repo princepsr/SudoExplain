@@ -1,8 +1,8 @@
 ---
-title: Readiness vs liveness probes: why deploys cause errors
+title: "Kubernetes readiness vs liveness probes: why deploys fail"
 date: 2026-11-01
 description: Why a routine rolling deploy can cause errors or a restart loop, the difference between readiness and liveness checks, and how to shut down gracefully.
-tags: scaling, deployment, reliability
+tags: kubernetes, scaling, deployment, reliability
 draft: true
 ---
 

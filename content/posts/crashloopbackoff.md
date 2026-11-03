@@ -1,5 +1,5 @@
 ---
-title: "CrashLoopBackOff: debug a pod that keeps restarting"
+title: "Kubernetes CrashLoopBackOff: debug a restarting pod"
 date: 2026-11-01
 description: How to debug CrashLoopBackOff in Kubernetes: what the status means, how to read exit codes and previous logs, and how to fix each common cause.
 tags: kubernetes, debugging, operations

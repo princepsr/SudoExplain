@@ -1,8 +1,8 @@
 ---
-title: Blocked event loop: why one slow call freezes everything
+title: "Blocked event loop in Netty: why one slow call freezes all"
 date: 2026-11-01
 description: A blocked event loop freezes every endpoint of a Netty, WebFlux, Vert.x or Node service, even the health check. Learn to find and fix the blocking call.
-tags: java, async, performance
+tags: java, netty, async, performance
 draft: true
 ---
 

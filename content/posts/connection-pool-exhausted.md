@@ -2,7 +2,7 @@
 title: HikariPool-1 Connection is not available: pool exhausted
 date: 2026-11-02
 description: Why a Java app hangs with Connection is not available errors under load, how leaked or hoarded connections cause it, and how to find and fix it.
-tags: java, databases, performance
+tags: java, databases, performance, hikaricp
 ---
 
 ## The question

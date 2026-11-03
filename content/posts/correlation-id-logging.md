@@ -1,5 +1,5 @@
 ---
-title: "Correlation IDs: trace one request across services"
+title: "Correlation ID in logs: trace a request across microservices"
 date: 2026-11-01
 description: How a correlation ID lets you trace one request across services in logs: the traceparent header, Java MDC, and the thread trap that loses the ID.
 tags: observability, logging, java

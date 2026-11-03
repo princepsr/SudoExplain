@@ -2,7 +2,7 @@
 title: "Slow SQL query: find a missing index with EXPLAIN"
 date: 2026-11-02
 description: Your SQL query was fast in testing but takes seconds in production. Find out why, how to read EXPLAIN, and how to add an index that works.
-tags: databases, performance, sql
+tags: databases, performance, sql, postgresql
 ---
 
 ## The question
