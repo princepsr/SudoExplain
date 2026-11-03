@@ -10,5 +10,6 @@ What Kubernetes errors really mean, and how to fix them.
 - Why a pod keeps restarting
 - Why deploys cause short outages
 - Why containers get killed
+- How to read kubectl output to find the cause
 
 **Good for:** anyone running apps on Kubernetes.

@@ -10,5 +10,6 @@ Bugs that only happen when many things run at the same time.
 - Race conditions
 - Deadlocks
 - Lost updates
+- Why thread pools fill up and hide overload
 
 **Good for:** anyone whose code handles many requests at once.
