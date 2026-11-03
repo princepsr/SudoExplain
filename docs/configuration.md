@@ -57,7 +57,7 @@ Nothing here needs configuring.
 
 ### Topic hubs
 
-Every tag has a page at `/tags/<tag>/`. To make one worth indexing, add `content/topics/<tag>.md` with a title (60 characters or fewer, starting with the phrase people search for), a description (about 160 characters) and a short introduction of 30 to 100 words in plain words, no longer than it needs to be (one line on what the posts help with, three or four things the reader will learn, and who it is for):
+Every tag has a page at `/tags/<tag>/`. To make one worth indexing, add `content/topics/<tag>.md` with a title (60 characters or fewer, starting with the phrase people search for), a description (about 160 characters) and a short introduction of 30 to 70 words in plain words (one line on what the posts help with, three or four things the reader will learn, and who it is for):
 
 ```markdown
 ---
