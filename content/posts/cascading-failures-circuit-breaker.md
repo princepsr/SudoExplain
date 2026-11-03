@@ -6,7 +6,7 @@ tags: reliability, system-design, scaling
 draft: true
 ---
 
-## The doubt
+## The question
 
 One service, say the one that returns product recommendations, gets slow. It does not crash. It just takes ten seconds instead of one hundred milliseconds. A few minutes later the checkout service is down. Then the login page. Then the whole site.
 

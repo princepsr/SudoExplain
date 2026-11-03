@@ -6,7 +6,7 @@ tags: operations, linux, logging
 draft: true
 ---
 
-## The doubt
+## The question
 
 At 03:40 the app starts failing. Writes return errors, the database refuses new data, and even logging into the server is slow. The error is plain:
 

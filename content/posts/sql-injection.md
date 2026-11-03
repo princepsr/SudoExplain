@@ -6,7 +6,7 @@ tags: security, SQL, java
 draft: true
 ---
 
-## The doubt
+## The question
 
 A login form takes a username and a password. The code builds a database query from them and checks whether a row comes back. It has worked for years. Then a tester types a single quote and a few words into the password box and is logged in as a real user, without knowing the password.
 

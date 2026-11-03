@@ -6,7 +6,7 @@ tags: kafka, messaging, reliability
 draft: true
 ---
 
-## The doubt
+## The question
 
 A team runs six consumer instances reading an `orders` topic. After a deploy, the dashboard shows lag climbing. All six instances are up, CPU is low, and the broker is healthy. Yet the topic is barely being read.
 

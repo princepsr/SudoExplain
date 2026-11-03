@@ -6,7 +6,7 @@ tags: databases, performance, sql
 draft: true
 ---
 
-## The doubt
+## The question
 
 A customer search box runs this query:
 

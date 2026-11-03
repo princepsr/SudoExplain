@@ -6,7 +6,7 @@ tags: java, money, debugging
 draft: true
 ---
 
-## The doubt
+## The question
 
 Finance reports that an invoice total is **one cent** different from what the ledger says. The ledger is the official book of record. Not often, and never by more. The totals on two screens disagree, a refund leaves a stray cent behind, and a reconciliation report, which matches one system's numbers against another's, never quite balances. Nobody can point to a line of code that is wrong.
 

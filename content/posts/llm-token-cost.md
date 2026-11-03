@@ -6,7 +6,7 @@ tags: AI, LLM, scaling
 draft: true
 ---
 
-## The doubt
+## The question
 
 An AI feature goes live. The estimate was careful: a few cents per conversation. At the end of the month, the bill is ten times higher. Usage did not grow ten times, and nobody changed the code.
 
@@ -46,7 +46,7 @@ the new text itself          = 20 x 500   =  10,000
 total about 105,000, versus 10,000 if nothing were resent
 ```
 
-That is roughly **ten times** the naive estimate. It is the bill in the doubt. For the history part, doubling a conversation's length roughly quadruples it. A fixed prompt on every call softens this for short chats, but long chats get close to four times.
+That is roughly **ten times** the naive estimate. It is the bill from the question above. For the history part, doubling a conversation's length roughly quadruples it. A fixed prompt on every call softens this for short chats, but long chats get close to four times.
 
 At an invented price of $3 per million input tokens, 105,000 tokens cost about $0.32 and 10,000 cost about $0.03. That counts everything at the input price for simplicity. The answers themselves are billed as output, which costs more. A few long conversations can cost more than hundreds of short ones.
 

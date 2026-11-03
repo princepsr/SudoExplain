@@ -6,7 +6,7 @@ tags: networking, nginx, debugging
 draft: true
 ---
 
-## The doubt
+## The question
 
 Users report an occasional error page: **502 Bad Gateway**. It is rare, perhaps one request in a few thousand. Refreshing makes it go away.
 

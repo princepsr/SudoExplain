@@ -6,7 +6,7 @@ tags: AI, agents, reliability
 draft: true
 ---
 
-## The doubt
+## The question
 
 You build an assistant that can search your documents and file support tickets. It works in testing. Over a weekend, one user asks for something the search tool cannot answer, and the search service starts returning errors.
 

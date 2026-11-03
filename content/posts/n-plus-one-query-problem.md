@@ -5,7 +5,7 @@ description: Why a Hibernate or JPA page that is fast in development takes 10 se
 tags: java, databases, performance
 ---
 
-## The doubt
+## The question
 
 An orders page loads in 50 milliseconds on your machine, where the test database holds ten orders. Months later, in production with five thousand, it takes ten seconds. The database is busy answering a flood of requests. Yet when you look at the slow-query log, which lists queries that took too long, **nothing is slow**: every query finishes in a millisecond or two.
 

@@ -8,7 +8,7 @@ All site-wide settings live in `site.config.json`. The build reads it every time
 |---|---|---|
 | `title` | `Sudo Explain` | Site name in the header, page titles, footer, share cards, RSS |
 | `eyebrow` | `$ sudo explain --topic anything` | Small line above the home page headline |
-| `tagline` | `Tech concepts, explained until the doubt is gone.` | Home page headline and home page title |
+| `tagline` | `The why behind the tech, explained clearly.` | Home page headline and home page title |
 | `description` | `An engineer's notebook on…` | Default meta description, home page intro, RSS |
 | `author` | `Prince Singh` | Footer, `author` meta tag, structured data |
 | `lang` | `en` | The `<html lang>` attribute, RSS language |

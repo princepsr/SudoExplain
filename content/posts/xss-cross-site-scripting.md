@@ -6,7 +6,7 @@ tags: XSS, security, web
 draft: true
 ---
 
-## The doubt
+## The question
 
 A site has a comment box. A user posts a comment that contains HTML tags instead of words. Nothing looks wrong for them. But when other users open the page, their browsers run that comment as a program.
 

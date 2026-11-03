@@ -6,7 +6,7 @@ tags: distributed-systems, reliability, databases
 draft: true
 ---
 
-## The doubt
+## The question
 
 A company runs a database primary in one data center and a standby in another. During a night of network trouble, the link between the two sites drops for ninety seconds. The standby decides the primary is dead and promotes itself. But the old primary was never dead. It was only cut off.
 

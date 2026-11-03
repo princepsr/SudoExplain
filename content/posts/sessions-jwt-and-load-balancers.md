@@ -5,7 +5,7 @@ description: A beginner's walkthrough: what sessions and JWTs are, what breaks w
 tags: authentication, web, system-design, scaling
 ---
 
-## The doubt
+## The question
 
 Picture a website where you log in. You click "My orders", and it greets you by name. The site **remembers who you are**. That memory is called a **session**.
 
@@ -19,7 +19,7 @@ Here is the puzzle:
 
 > If one computer remembers me, how does the next one know who I am?
 
-That was my doubt. Big websites with millions of users clearly solve it, so the answer must exist. It only makes sense after a few basics, so we start there. I won't assume you know any of these words.
+That was my question. Big websites with millions of users clearly solve it, so the answer must exist. It only makes sense after a few basics, so we start there. I won't assume you know any of these words.
 
 > [!SUMMARY]
 > By the end you will know:

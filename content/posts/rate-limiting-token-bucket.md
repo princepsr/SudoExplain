@@ -6,7 +6,7 @@ tags: backend, apis, scaling
 draft: true
 ---
 
-## The doubt
+## The question
 
 An API serves hundreds of customers. One afternoon it becomes slow for all of them, and the database is close to its limit. The cause is **one** customer: a script with a bug that calls the API in a tight loop, hundreds of times a second.
 

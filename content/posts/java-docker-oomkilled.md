@@ -6,7 +6,7 @@ tags: java, docker, kubernetes
 draft: true
 ---
 
-## The doubt
+## The question
 
 A Java service in a container restarts every few hours. The heap graph is calm, sitting at 60% with no climb. The application log ends mid-sentence, with no stack trace and no `OutOfMemoryError`. Then the orchestrator reports this:
 

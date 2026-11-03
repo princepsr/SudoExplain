@@ -6,7 +6,7 @@ tags: scaling, backend, java
 draft: true
 ---
 
-## The doubt
+## The question
 
 A nightly job sends a summary email to every customer. It ran perfectly for a year. Then the team scaled the service from one server to three to handle more traffic. The next morning every customer had **three** identical emails.
 

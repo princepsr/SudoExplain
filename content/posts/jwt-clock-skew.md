@@ -6,7 +6,7 @@ tags: authentication, JWT, debugging
 draft: true
 ---
 
-## The doubt
+## The question
 
 Users log in successfully and then, within seconds, an API call fails with an error such as `Token is not yet valid`. The token is brand new. A refresh works. It happens on some requests and not others, and only for some servers.
 

@@ -6,7 +6,7 @@ tags: java, concurrency, debugging
 draft: true
 ---
 
-## The doubt
+## The question
 
 A coupon can be used only once. The code checks that it is unused, applies the discount, then marks it used. Tests pass. On a laptop it never goes wrong.
 

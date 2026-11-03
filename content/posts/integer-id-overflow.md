@@ -6,7 +6,7 @@ tags: databases, java, debugging
 draft: true
 ---
 
-## The doubt
+## The question
 
 On a quiet Tuesday, every attempt to create an order starts failing. The error mentions a sequence, or a duplicate key. The database is healthy, disk is fine, and nothing was deployed.
 

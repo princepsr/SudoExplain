@@ -6,7 +6,7 @@ tags: java, jvm, performance
 draft: true
 ---
 
-## The doubt
+## The question
 
 The dashboard for a Java service looks fine. Average latency is 40 ms, CPU is low, and errors are rare. But the 99th-percentile latency, called **p99** (the time that 99 out of 100 requests beat), jumps to two seconds every few minutes. Then it drops again as if nothing happened.
 

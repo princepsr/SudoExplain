@@ -6,7 +6,7 @@ tags: java, dates, debugging
 draft: true
 ---
 
-## The doubt
+## The question
 
 A user in India enters their birthday as 15 May. Another screen shows 14 May. A "today's orders" report misses everything placed after midnight local time. Everything works on your laptop and in the test environment, and the bug only appears for certain users, or only at certain hours.
 

@@ -16,7 +16,8 @@ const DIST = join(ROOT, 'dist');
 const ARGS = new Set(process.argv.slice(2));
 const SERVE = ARGS.has('--serve');
 const CHECK = SERVE || ARGS.has('--check');
-const DRAFTS = SERVE || CHECK || ARGS.has('--drafts');
+let skippedDrafts = 0;
+const DRAFTS =SERVE || CHECK || ARGS.has('--drafts');
 
 let cfg = {};
 
@@ -554,6 +555,7 @@ function loadPosts() {
 
   assertUniqueAddresses(posts);
   applyTagSpelling(posts);
+  skippedDrafts = DRAFTS ? 0 : posts.filter((p) => p.draft).length;
   return posts.filter((p) => DRAFTS || !p.draft).sort((a, b) => b.date - a.date);
 }
 
@@ -1009,7 +1011,7 @@ function aboutTerminal(posts, tagMap) {
     add('cat last-updated', isoDay(newest), 3);
   }
   add('ls links/', `<span class="t-links">${links.join('')}</span>`, 5);
-  add('sudo explain --topic anything', '<span class="t-ok">Permission granted. Doubt cleared.</span>');
+  add('sudo explain --topic anything', '<span class="t-ok">Permission granted. Question answered.</span>');
 
   const dropAttr = (drop) => (drop ? ` data-drop="${drop}"` : '');
   const output = (o) => {
@@ -1229,7 +1231,8 @@ function build() {
   emit('/robots.txt', `User-agent: *\nAllow: /\nSitemap: ${cfg.url}${cfg.basePath}/sitemap.xml\n`);
   emit('/llms.txt', llmsTxt(published));
 
-  console.log(`Built ${posts.length} post(s) in ${Date.now() - started}ms -> dist/`);
+  const draftNote = DRAFTS ? `${posts.length - published.length} draft(s) included` : `${skippedDrafts} draft(s) skipped`;
+  console.log(`Built ${posts.length} post(s), ${draftNote}, in ${Date.now() - started}ms -> dist/`);
   if (CHECK) reportSuggestions(posts);
 }
 

@@ -170,7 +170,7 @@ Every post follows the same shape. The sessions post is shown on the right as an
 
 | Section | The question it answers | In the sessions post |
 |---|---|---|
-| **The doubt** | What confused me, and why does the reader care? | "How can an app with sessions run on several servers?" |
+| **The question** | What confused me, and why does the reader care? | "How can an app with sessions run on several servers?" |
 | **The promise** | What will they understand by the end? | The "In this post" summary box |
 | **The basics** | What words do they need first? | What HTTP, cookies, sessions and JWTs are |
 | **The problem** | What goes wrong, shown on a small case? | Session lost when a second server appears |
@@ -179,7 +179,7 @@ Every post follows the same shape. The sessions post is shown on the right as an
 | **The decision** | Which one should they pick? | The "Which should you use?" table |
 | **The takeaway** | What is the one thing to remember? | Five numbered lines |
 
-You do not need every row for every post. A short post can be a doubt, the basics and a takeaway. Keep the order: doubt first, solution last.
+You do not need every row for every post. A short post can be a question, the basics and a takeaway. Keep the order: question first, solution last.
 
 ### Every post needs a production failure
 
@@ -199,7 +199,7 @@ Keep code lines under about 62 characters and put comments on their own line abo
 
 ### Ten habits
 
-1. **Start from a real question.** Use the question you actually asked yourself, in your own words, as a quote. Readers share the doubt before they see the answer.
+1. **Start from a real question.** Use the question you actually asked yourself, in your own words, as a quote. Readers share the question before they see the answer.
 2. **Promise the outcome.** A summary box listing what they will know by the end tells readers it is worth staying.
 3. **Define every word where it first appears.** Put the meaning in the same sentence or in brackets right after it: "HTTP, the set of rules browsers and servers use to exchange pages and data." Never use a word first and explain it later.
 4. **Use an analogy, then say where it stops.** A session is like a coat-check ticket: a meaningless number that points to something stored elsewhere. Then add the precise meaning, so the analogy helps without misleading.

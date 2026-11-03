@@ -6,7 +6,7 @@ tags: topic-one, topic-two
 draft: true
 ---
 
-## The doubt
+## The question
 
 [The one real question that started this post. One or two sentences. Say why it confused you.]
 

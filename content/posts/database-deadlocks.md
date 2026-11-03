@@ -6,7 +6,7 @@ tags: databases, concurrency, sql
 draft: true
 ---
 
-## The doubt
+## The question
 
 Under load, a few requests fail with an error such as this:
 

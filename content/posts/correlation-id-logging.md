@@ -6,7 +6,7 @@ tags: observability, logging, java
 draft: true
 ---
 
-## The doubt
+## The question
 
 A customer writes: "My order failed at 14:32." Support finds nothing useful. Your system has five services, and together they write millions of log lines an hour.
 

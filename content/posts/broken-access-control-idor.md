@@ -6,7 +6,7 @@ tags: security, authorization, apis
 draft: true
 ---
 
-## The doubt
+## The question
 
 A customer opens their invoice. The address bar says `/invoices/1001`. Out of curiosity, they change it to `/invoices/1002` and see **another customer's invoice**, with name, address and amounts.
 

@@ -1,8 +1,8 @@
 {
   "title": "Sudo Explain",
   "eyebrow": "$ sudo explain --topic anything",
-  "tagline": "Tech concepts, explained until the doubt is gone.",
-  "description": "Sudo Explain is an engineer's notebook on core concepts, system design and production failures, written to clear the doubts that tripped me up.",
+  "tagline": "The why behind the tech, explained clearly.",
+  "description": "Sudo Explain is an engineer's notebook on core concepts, system design and production failures, written to answer the questions that tripped me up.",
   "author": "Prince Singh",
   "lang": "en",
   "url": "https://sudoexplain.dev",

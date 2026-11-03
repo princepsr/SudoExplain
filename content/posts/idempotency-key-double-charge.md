@@ -6,7 +6,7 @@ tags: reliability, apis, payments
 draft: true
 ---
 
-## The doubt
+## The question
 
 A customer clicks "Pay" once. Their card is charged twice. Support finds two identical requests in the logs, a few seconds apart, and the payment provider shows two charges. Nobody pressed the button twice, and the code does not loop.
 

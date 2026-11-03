@@ -6,7 +6,7 @@ tags: databases, migrations, deployment
 draft: true
 ---
 
-## The doubt
+## The question
 
 It was a small change: add one column to the `users` table. The migration passed on a laptop in 20 milliseconds, and passed in staging. In production, the deploy started, and within seconds every page that touched `users` hung. Connections piled up, and the app fell over.
 

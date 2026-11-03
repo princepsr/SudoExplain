@@ -6,7 +6,7 @@ tags: TLS, security, operations
 draft: true
 ---
 
-## The doubt
+## The question
 
 At 02:07 on a Saturday the alerts start. Browsers show a full-page warning. Mobile apps fail to load. Partner systems report that every call to your API is rejected.
 

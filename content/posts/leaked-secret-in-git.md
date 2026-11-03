@@ -6,7 +6,7 @@ tags: security, git, operations
 draft: true
 ---
 
-## The doubt
+## The question
 
 A developer commits a file called `.env` by mistake. It holds a cloud access key. They notice ten minutes later, delete the file and commit again. The file is gone from the project. They breathe out.
 

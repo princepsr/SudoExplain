@@ -6,7 +6,7 @@ tags: java, memory, debugging
 draft: true
 ---
 
-## The doubt
+## The question
 
 A Java service runs fine after a deploy. Over a few days it gets slower. Then it dies with `OutOfMemoryError` (Java's "no memory left" error), someone restarts it, and the cycle begins again.
 

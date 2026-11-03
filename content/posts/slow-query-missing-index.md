@@ -5,7 +5,7 @@ description: Your SQL query was fast in testing but takes seconds in production.
 tags: databases, performance, sql
 ---
 
-## The doubt
+## The question
 
 A page that lists a customer's orders was instant in development. Months later it takes four seconds, and the database CPU is high every time someone opens it. A colleague says "add an index", runs one command, and the page becomes instant again.
 

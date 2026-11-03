@@ -6,7 +6,7 @@ tags: distributed-systems, redis, concurrency
 draft: true
 ---
 
-## The doubt
+## The question
 
 A team runs a nightly job on three servers and uses a Redis lock so only one runs it at a time. For months it works. One night, customers get two invoices. The logs show worker A and worker B both processing the same batch, about 25 seconds apart.
 

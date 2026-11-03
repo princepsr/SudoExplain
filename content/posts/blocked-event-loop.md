@@ -6,7 +6,7 @@ tags: java, async, performance
 draft: true
 ---
 
-## The doubt
+## The question
 
 A service built on a reactive framework (one that handles many requests with a few threads) has been fast for months. Today every endpoint is slow at the same moment, including the health check. CPU is at 5%. The database is idle. Then the orchestrator sees the failed health check, restarts the instance, and the pattern repeats on the next one.
 

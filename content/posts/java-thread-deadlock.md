@@ -6,7 +6,7 @@ tags: java, concurrency, debugging
 draft: true
 ---
 
-## The doubt
+## The question
 
 A service that normally answers in milliseconds starts hanging. Some requests never return. The load balancer marks instances unhealthy one by one. Yet CPU is near zero, memory is flat, and there is not one error in the log.
 

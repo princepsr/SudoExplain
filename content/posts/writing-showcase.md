@@ -110,7 +110,7 @@ Unknown languages stay plain: no colours, still escaped <safely> & "quoted".
 
 ## Quote and rule
 
-> A good explanation removes a doubt instead of adding vocabulary.
+> A good explanation answers a question instead of adding vocabulary.
 
 ---
 

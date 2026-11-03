@@ -6,7 +6,7 @@ tags: databases, concurrency, apis
 draft: true
 ---
 
-## The doubt
+## The question
 
 Two support agents open the same customer record. One updates the phone number and saves. The other, a minute later, fixes the name and saves. Afterwards the phone number is **back to the old one**. Nobody got an error. The first agent insists they saved it, and they did.
 

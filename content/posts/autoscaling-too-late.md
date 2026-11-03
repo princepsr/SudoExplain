@@ -6,7 +6,7 @@ tags: scaling, kubernetes, performance
 draft: true
 ---
 
-## The doubt
+## The question
 
 Your service runs on Kubernetes with an autoscaler. A marketing email goes out at 09:00, traffic triples in a minute, and the dashboard shows the autoscaler doing its job: 4 instances become 10. (The default scale-up limit takes it from 4 to 8 first, then to 10 at the next evaluation, and this post treats it as one step to keep the arithmetic simple.)
 

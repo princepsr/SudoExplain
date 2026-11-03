@@ -6,7 +6,7 @@ tags: system-design, microservices, reliability
 draft: true
 ---
 
-## The doubt
+## The question
 
 Placing an order touches four services, each with its own database: **inventory** reserves the stock, **payment** charges the card, **shipping** creates the delivery, and **notifications** sends the confirmation.
 

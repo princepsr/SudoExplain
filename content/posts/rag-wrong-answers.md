@@ -6,7 +6,7 @@ tags: AI, RAG, LLM
 draft: true
 ---
 
-## The doubt
+## The question
 
 You build a chatbot over your company's documents. In the demo, it answers a dozen questions perfectly. In production, users report that it quotes an old policy, mixes up two products, misses a document that clearly has the answer, and states all of it with complete confidence.
 

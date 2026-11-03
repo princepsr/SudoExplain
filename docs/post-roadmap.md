@@ -1,6 +1,6 @@
 # Post roadmap
 
-Every post teaches a concept **and the production failure that comes with it**: not "what a garbage collector is" but "what happens when it cannot free memory because something still holds a strong reference". Each post follows the usual shape (doubt, summary, short basics, the failure, how to diagnose it, the fixes, which to use, takeaway) and ends with what goes wrong when the fix is used badly.
+Every post teaches a concept **and the production failure that comes with it**: not "what a garbage collector is" but "what happens when it cannot free memory because something still holds a strong reference". Each post follows the usual shape (question, summary, short basics, the failure, how to diagnose it, the fixes, which to use, takeaway) and ends with what goes wrong when the fix is used badly.
 
 All posts below are written as **drafts** (`draft: true`). To publish one: review it, delete `draft: true`, set `date` to the publish day, run `node og-images.mjs` and `node build.mjs --check`, then commit and push. The plan is one post a week.
 

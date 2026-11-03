@@ -6,7 +6,7 @@ tags: databases, replication, scaling
 draft: true
 ---
 
-## The doubt
+## The question
 
 A user edits their profile name and clicks Save. The page reloads and shows the old name. They assume the save failed and click Save again. Now support tickets arrive about duplicate comments, double orders, and "my changes disappear, then come back."
 

@@ -6,7 +6,7 @@ tags: java, concurrency, scaling
 draft: true
 ---
 
-## The doubt
+## The question
 
 A Java service handles background work with `Executors.newFixedThreadPool(10)`. Ten threads. It looks safe: a hard cap, so it can never use more than ten threads.
 

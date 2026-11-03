@@ -44,7 +44,7 @@ Email reaches readers who do not use feed readers, but it needs a service to hol
 
 ## Ask a question about this post (LLM)
 
-Idea from a reader of the project, for if the site grows: a box on each post where a reader asks a doubt, and an LLM answers using that post's text as its context. Not decided and not planned yet.
+Idea from a reader of the project, for if the site grows: a box on each post where a reader asks a question, and an LLM answers using that post's text as its context. Not decided and not planned yet.
 
 A static site cannot call an LLM safely on its own. Calling a model API from the page would expose the API key to everyone, so this needs a small backend, such as a serverless function, that holds the key and sends the post text plus the question to the model. Things to settle before building it:
 

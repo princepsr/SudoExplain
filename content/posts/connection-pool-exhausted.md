@@ -5,7 +5,7 @@ description: Why a Java app hangs with Connection is not available errors under 
 tags: java, databases, performance
 ---
 
-## The doubt
+## The question
 
 The service runs fine all day. Then traffic picks up and every request starts to hang. CPU is low. The database looks nearly idle. There is no crash, just a growing wall of timeouts, and the logs say something like this:
 

@@ -6,7 +6,7 @@ tags: kubernetes, debugging, operations
 draft: true
 ---
 
-## The doubt
+## The question
 
 You deploy a new version. The pipeline is green, but the site does not change. You run `kubectl get pods` and the new pod says `CrashLoopBackOff`, with a restart count that grows every few minutes.
 

@@ -6,7 +6,7 @@ tags: scaling, deployment, reliability
 draft: true
 ---
 
-## The doubt
+## The question
 
 You deploy a new version with a rolling update, one instance at a time, so the site stays up. But for a few minutes, users get errors. Or, on another day, a short database slowdown makes **every** instance restart at once, and the site stays down much longer than the slowdown itself.
 

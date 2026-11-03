@@ -6,7 +6,7 @@ tags: AI, security, LLM
 draft: true
 ---
 
-## The doubt
+## The question
 
 You build an AI assistant that reads a user's emails, summarizes web pages, and can take actions: send a reply, create a ticket, look up a contact. It works well in demos.
 

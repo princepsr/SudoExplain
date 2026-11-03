@@ -6,7 +6,7 @@ tags: AI, LLM, reliability
 draft: true
 ---
 
-## The doubt
+## The question
 
 A shop adds an AI assistant to its support chat. A customer asks about a refund. The assistant replies, in a calm and confident tone, "Our policy allows refunds within 90 days," and offers to process one.
 

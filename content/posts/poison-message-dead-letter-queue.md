@@ -6,7 +6,7 @@ tags: messaging, reliability, backend
 draft: true
 ---
 
-## The doubt
+## The question
 
 A service reads messages from a queue and processes them. It has run fine for months. One afternoon the queue starts growing. The consumer is up, its CPU is quiet, and nothing has crashed. But no new messages are being processed, and the logs show the **same error, over and over**, every few seconds.
 

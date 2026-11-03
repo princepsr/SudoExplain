@@ -7,7 +7,7 @@ description: Who writes Sudo Explain, what it covers, and how to get in touch.
 
 ## Why this blog exists
 
-Most concepts I thought I understood only became solid when I tried to explain them in writing. Sudo Explain is where I do that in public, so that the next person with the same doubt can find the answer faster than I did.
+Most concepts I thought I understood only became solid when I tried to explain them in writing. Sudo Explain is where I do that in public, so that the next person with the same question can find the answer faster than I did.
 
 ## What you'll find here
 
@@ -20,7 +20,7 @@ Most concepts I thought I understood only became solid when I tried to explain t
 
 Every post follows the same shape:
 
-1. **The doubt:** the question that confused me.
+1. **The question:** what confused me.
 2. **The misconception:** what I assumed, and why it was wrong.
 3. **How it actually works:** the mechanism, with the smallest example I can build.
 4. **The takeaway:** the one thing worth remembering.

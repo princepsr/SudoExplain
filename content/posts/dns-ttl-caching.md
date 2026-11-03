@@ -6,7 +6,7 @@ tags: DNS, networking, deployment
 draft: true
 ---
 
-## The doubt
+## The question
 
 You move a service to new servers. You change one DNS record, check it, and shut the old machines down at the end of the day. Then the complaints arrive.
 

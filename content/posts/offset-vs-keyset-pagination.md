@@ -6,7 +6,7 @@ tags: databases, apis, performance
 draft: true
 ---
 
-## The doubt
+## The question
 
 A feed shows 20 items per page, with an infinite scroll. Users report two odd things. Sometimes the same item appears twice, and sometimes an item is never shown at all. Separately, the export job that walks through every page gets slower and slower, and page 5,000 takes several seconds.
 

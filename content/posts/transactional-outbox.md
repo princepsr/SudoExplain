@@ -6,7 +6,7 @@ tags: distributed-systems, messaging, databases
 draft: true
 ---
 
-## The doubt
+## The question
 
 A service saves a new order in its database, then publishes an `OrderPlaced` event so the shipping service can react. It works for months. Then one evening the service is restarted at the wrong moment. The order is in the database. The event was never sent. Shipping never hears about it, and a customer waits for a package that nobody packs.
 

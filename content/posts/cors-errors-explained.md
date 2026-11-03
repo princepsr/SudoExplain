@@ -6,7 +6,7 @@ tags: CORS, web, security
 draft: true
 ---
 
-## The doubt
+## The question
 
 You build an API and test it with `curl`. It returns the data. You try it in Postman. It works there too. Then your web page calls the same URL and the console fills with red text:
 

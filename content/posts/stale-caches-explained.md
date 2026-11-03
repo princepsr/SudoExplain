@@ -5,7 +5,7 @@ description: Why two servers give different answers, how to spot a stale cache, 
 tags: caching, system-design, scaling, web
 ---
 
-## The doubt
+## The question
 
 Imagine an online shop. You change a product's price from $20 to $25 and save it. You open the product page and see $25. Good.
 

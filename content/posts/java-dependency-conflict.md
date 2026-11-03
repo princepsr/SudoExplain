@@ -6,7 +6,7 @@ tags: java, maven, debugging
 draft: true
 ---
 
-## The doubt
+## The question
 
 The feature works on your laptop. The tests pass. The build is green. You deploy, and the first request that touches the feature fails with this:
 
