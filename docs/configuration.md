@@ -57,7 +57,7 @@ Nothing here needs configuring.
 
 ### Topic hubs
 
-Every tag has a page at `/tags/<tag>/`. To make one worth indexing, add `content/topics/<tag>.md` with a title (60 characters or fewer, starting with the phrase people search for), a description (about 160 characters) and a short introduction of 80 to 200 words:
+Every tag has a page at `/tags/<tag>/`. To make one worth indexing, add `content/topics/<tag>.md` with a title (60 characters or fewer, starting with the phrase people search for), a description (about 160 characters) and a very short introduction of 30 to 70 words in plain words (one line on what the posts help with, three or four things the reader will learn, and who it is for):
 
 ```markdown
 ---
@@ -65,7 +65,14 @@ title: Caching explained through real production failures
 description: How caches go wrong in production: stale data, stampedes and inconsistent servers.
 ---
 
-A short introduction that says what the topic covers and who it is for.
+One plain sentence on what these posts help with.
+
+**You will learn**
+
+- Something specific, in simple words
+- Another specific thing
+
+**Good for:** the kind of reader this is for.
 ```
 
 The page stays `noindex` and out of the sitemap until the topic has two published posts, so a hub never appears as a thin list of one link. Do not link to specific posts in the introduction, because the post list below it is built automatically and a link to a draft would break. Introductions exist for databases, java, kubernetes, concurrency, security, scaling, system-design, caching, performance, apis, networking, authentication, messaging, distributed-systems and llm. A hub only goes live once the topic has two published posts.
