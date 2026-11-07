@@ -1,4 +1,5 @@
-// Makes the link-preview card for every published post: static/og/<slug>.png (1200x630).
+// Makes the link-preview card for every published post: static/og/<slug>.png (1200x630),
+// and the home page card static/og.png from the tagline in site.config.json.
 //   node og-images.mjs
 // It draws each card as a small web page and photographs it with headless Edge or Chrome, so it needs one
 // of them installed on your computer. Run it after writing or retitling a post, then commit the PNGs.
@@ -38,7 +39,8 @@ function readPost(file) {
   const meta = {};
   for (const line of m[1].split('\n')) {
     const i = line.indexOf(':');
-    if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    // Drop the quote marks that wrap a value such as title: "Slow SQL query".
+    if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim().replace(/^(["'])(.*)\1$/, '$2');
   }
   if (!meta.title || meta.draft === 'true') return null;
   const tags = (meta.tags || '')
@@ -68,6 +70,20 @@ h1{margin-top:44px;font-size:${size}px;line-height:1.14;font-weight:700;max-widt
 <div class="foot"><div class="tags">${post.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</div><div class="cmd">$ sudo explain</div></div>`;
 };
 
+// The home page card, static/og.png. It uses the tagline, author and eyebrow from site.config.json.
+const homeCard = () => `<!doctype html><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:630px;background:#121214;color:#ece9e1;font-family:Georgia,'Palatino Linotype',serif;border-top:10px solid #ff8a5c;padding:70px 80px 56px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:26px;font:700 40px 'Segoe UI',system-ui,sans-serif}
+.brand svg{width:84px;height:84px}
+h1{margin-top:44px;font-size:92px;line-height:1.1;font-weight:700;max-width:1040px}
+.foot{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;font:30px 'Segoe UI',system-ui,sans-serif;color:#9a968d}
+.cmd{font:28px Consolas,'Courier New',monospace;color:#ff8a5c}
+</style>
+<div class="brand"><svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#d9480f"/><polyline points="10,11 15,16 10,21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><line x1="17" y1="22" x2="23" y2="22" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>${esc(cfg.title)}</div>
+<h1>${esc(cfg.tagline)}</h1>
+<div class="foot"><div>${esc(cfg.author)}</div><div class="cmd">${esc(cfg.eyebrow)}</div></div>`;
+
 const posts = readdirSync(join(ROOT, 'content', 'posts'))
   .filter((f) => f.endsWith('.md'))
   .map(readPost)
@@ -90,6 +106,22 @@ for (const post of posts) {
   else {
     failed++;
     console.error(`  FAILED  ${post.slug}`);
+  }
+}
+
+{
+  const html = join(work, 'home.html');
+  const png = join(ROOT, 'static', 'og.png');
+  writeFileSync(html, homeCard());
+  const run = spawnSync(
+    browser,
+    ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--window-size=1200,630', `--screenshot=${png}`, pathToFileURL(html).href],
+    { stdio: 'ignore', timeout: 60000 },
+  );
+  if (run.status === 0 && existsSync(png)) console.log('  made  static/og.png (home page)');
+  else {
+    failed++;
+    console.error('  FAILED  static/og.png');
   }
 }
 

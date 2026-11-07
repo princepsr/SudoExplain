@@ -155,7 +155,7 @@ This looks right, but `@Transactional` does nothing here, and Spring does not wa
 
 A call from inside the same class goes straight to the method. The stand-in is skipped, so no transaction opens. The two saves are no longer all-or-nothing: if the second one fails, the first one stays. The fix is to put `saveOrderAndPayment` in a separate class, like `orderWriter` above, so the call comes from outside and goes through the stand-in.
 
-**2. Charging first changes what can go wrong.** If the save fails after the charge, the customer paid and there is no order. Protect against that with an idempotency key, a unique ID that lets the server recognise and ignore a repeated request, and a way to refund.
+**2. Charging first changes what can go wrong.** If the save fails after the charge, the customer paid and there is no order. Protect against that with an [idempotency key](/posts/idempotency-key-double-charge/), a unique ID that lets the server recognise and ignore a repeated request, and a way to refund.
 
 The principle: **a connection should be held only while the database is actually working**. Never across a network call, a file upload or a sleep.
 
