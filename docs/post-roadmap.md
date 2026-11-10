@@ -13,7 +13,7 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 3 | Java | Java memory leak: strong references and heap dumps | Leak through strong references (static map, listener, ThreadLocal) | java-memory-leak | done |
 | 4 | Java | Connection pool exhausted: why the app hangs under load | Leaked connections hang every request; more servers make it worse | connection-pool-exhausted | draft |
 | 5 | Java | Unbounded thread pool queue: how it hides overload | Executor queue grows until the server dies | unbounded-thread-pool-queue | draft |
-| 6 | Java | Race condition in Java: check-then-act explained | "If absent, put" loses data under load | race-condition-check-then-act | draft |
+| 6 | Java | Race condition in Java: check-then-act explained | "If absent, put" loses data under load | race-condition-check-then-act | done |
 | 7 | Java, database | N+1 query problem: why one page runs 500 queries | One page triggers hundreds of queries after a data growth | n-plus-one-query-problem | draft |
 | 8 | Java | Java BigDecimal vs double for money: rounding errors | Floating point and rounding in money | java-bigdecimal-money-rounding | draft |
 | 9 | Backend | Cascading failures: timeouts, retries, circuit breakers | One slow dependency takes down every service; retries make it worse | cascading-failures-circuit-breaker | draft |

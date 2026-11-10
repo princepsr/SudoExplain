@@ -137,7 +137,7 @@ caption: Figure 2. The key table stops the second charge.
 Retry with same key -> Unique insert fails -> Stored result returned -> No second charge
 ```
 
-Two details matter here. First, the key is **saved before the work starts**. Say two requests arrive at the same moment. If each one only checks "have I seen this key?", both see "no", and both charge the card. This problem is called the check-then-act race. Saving first, with a unique rule, fixes it: the database lets only one request save the key, and the other is rejected.
+Two details matter here. First, the key is **saved before the work starts**. Say two requests arrive at the same moment. If each one only checks "have I seen this key?", both see "no", and both charge the card. This problem is called the [check-then-act race](/posts/race-condition-check-then-act/). Saving first, with a unique rule, fixes it: the database lets only one request save the key, and the other is rejected.
 
 Second, the **same key is passed on** to the payment provider. Many providers, Stripe among them, accept an idempotency key and ignore a repeat. This helps when the server crashes after charging but before marking the key `done`. The row stays `in_progress` until its timeout. A later retry then reaches the provider with the same key, and the provider does not charge again.
 

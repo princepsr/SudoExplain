@@ -8,7 +8,8 @@ A live post must never link to a draft, because the link would be dead. Where a 
 | `connection-pool-exhausted` | "When the fix goes wrong", pitfall 2 (retrying on pool timeout): a link was removed | `/posts/cascading-failures-circuit-breaker/` | `cascading-failures-circuit-breaker` |
 | `java-memory-leak` | "Which should you use?", last paragraph: "A queue that grows without limit is a close cousin of this leak" | `/posts/unbounded-thread-pool-queue/` | `unbounded-thread-pool-queue` |
 | `java-memory-leak` | "Another option: weak references, with care": add "The weak references post covers this in detail" | `/posts/java-weak-vs-strong-references/` | `java-weak-vs-strong-references` |
-| `idempotency-key-double-charge` | "check-then-act race" in "Fix: an idempotency key", the paragraph after the pseudocode | `/posts/race-condition-check-then-act/` | `race-condition-check-then-act` |
 | `idempotency-key-double-charge` | "Other ways to get the same safety", last bullet: "Queues, and the messages that keep failing in them" | `/posts/poison-message-dead-letter-queue/` | `poison-message-dead-letter-queue` |
+| `race-condition-check-then-act` | "Fix 2", "When one statement is not enough: a version number" paragraph, last part: "This is called optimistic locking" | `/posts/lost-update-optimistic-locking/` | `lost-update-optimistic-locking` |
+| `race-condition-check-then-act` | "Which should you use?", last table row: "A distributed lock" | `/posts/distributed-lock-failures/` | `distributed-lock-failures` |
 
 Also: when a draft is published, link back to it from 1 or 2 older posts, and make sure it links to 2 or 3 related posts.
