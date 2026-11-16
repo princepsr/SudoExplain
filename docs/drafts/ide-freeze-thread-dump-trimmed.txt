@@ -1,0 +1,82 @@
+Trimmed from a real thread dump taken while IntelliJ IDEA was frozen.
+JVM: Java 25.0.4, Windows. 140 threads in the original: 17 BLOCKED,
+37 RUNNABLE, 61 TIMED_WAITING, 25 WAITING.
+Kept: 7 of the 140 threads. A line with "..." means frames were cut.
+Nothing was reworded; thread names, lock ids and frames are as dumped.
+
+"DefaultDispatcher-worker-17"
+   State: RUNNABLE
+	at java.lang.ProcessImpl.create(Native Method)
+	at java.lang.ProcessImpl.<init>(ProcessImpl.java:485)
+	at java.lang.ProcessImpl.start(ProcessImpl.java:146)
+	at java.lang.ProcessBuilder.start(ProcessBuilder.java:1078)
+	...
+	at git4idea.commands.GitLineHandler$1.<init>(GitLineHandler.java:154)
+	...
+	at git4idea.diff.GitDiffProvider.getCurrentRevision(GitDiffProvider.java:70)
+	...
+
+"CustomNpmRegistryService"
+   State: BLOCKED
+   on java.lang.Class@1397910 owned by "DefaultDispatcher-worker-17" Id=59
+	at java.lang.ProcessImpl.create(Native Method)
+	at java.lang.ProcessImpl.<init>(ProcessImpl.java:485)
+	at java.lang.ProcessImpl.start(ProcessImpl.java:146)
+	at java.lang.ProcessBuilder.start(ProcessBuilder.java:1078)
+	...
+	at com.intellij.javascript.nodejs.execution.NodeTargetRun.startProcessEx(NodeTargetRun.kt:206)
+	...
+
+"BuildManager Pool"
+   State: BLOCKED
+   on java.lang.Class@1397910 owned by "DefaultDispatcher-worker-17" Id=59
+	at java.lang.ProcessImpl.create(Native Method)
+	at java.lang.ProcessImpl.<init>(ProcessImpl.java:485)
+	at java.lang.ProcessImpl.start(ProcessImpl.java:146)
+	at java.lang.ProcessBuilder.start(ProcessBuilder.java:1078)
+	...
+	at com.intellij.compiler.server.BuildManager.launchBuildProcess(BuildManager.java:1813)
+	...
+
+"DefaultDispatcher-worker-45"
+   State: BLOCKED
+   on java.lang.Class@1397910 owned by "DefaultDispatcher-worker-17" Id=59
+	at java.lang.ProcessImpl.create(Native Method)
+	at java.lang.ProcessImpl.<init>(ProcessImpl.java:485)
+	at java.lang.ProcessImpl.start(ProcessImpl.java:146)
+	at java.lang.ProcessBuilder.start(ProcessBuilder.java:1078)
+	...
+	at org.jetbrains.completion.full.line.impl.hardware.CpuDetector.getCpuInfo(CpuDetector.kt:73)
+	...
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	...
+
+"DefaultDispatcher-worker-10"
+   State: BLOCKED
+   on kotlin.SynchronizedLazyImpl@6c7d7fa8 owned by "DefaultDispatcher-worker-45" Id=351
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:81)
+	at org.jetbrains.completion.full.line.impl.hardware.FullLineHardwareInfoService$getCompatibilityStateOrCheckAsync$1.invokeSuspend(FullLineHardwareInfoService.kt:47)
+	...
+
+"AWT-EventQueue-0"
+   State: TIMED_WAITING
+   on java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject@1f545242
+	at jdk.internal.misc.Unsafe.park(Native Method)
+	at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:271)
+	...
+	at com.intellij.openapi.progress.util.SuvorovProgress.showNiceOverlay(SuvorovProgress.kt:234)
+	...
+	at com.intellij.platform.locking.impl.NestedLocksThreadingSupport$ComputationState.upgradeWritePermit(NestedLocksThreadingSupport.kt:384)
+	...
+	at com.intellij.openapi.application.impl.ApplicationImpl.runWriteAction(ApplicationImpl.java:1173)
+	...
+	at com.intellij.openapi.editor.impl.EditorImpl.processKeyTyped(EditorImpl.java:1786)
+	...
+
+"reactor-http-nio-1"
+   State: RUNNABLE
+	at sun.nio.ch.WEPoll.wait(Native Method)
+	at sun.nio.ch.WEPollSelectorImpl.doSelect(WEPollSelectorImpl.java:108)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:142)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:526)
+	...
