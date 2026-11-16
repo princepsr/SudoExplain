@@ -252,7 +252,14 @@ If you are not sure, take two dumps, group the `BLOCKED` threads by lock, and re
 
 ## See it yourself
 
-Save the program above as `SlowLock.java` and run `java SlowLock.java`. In a second terminal run `jcmd`, find the id of `SlowLock`, then run `jcmd <pid> Thread.print`. Find `git-loader` and the three threads that wait for its lock.
+Download the program: [SlowLock.java](/code/java-blocked-threads-lock-owner/SlowLock.java). Then run `java SlowLock.java`. In a second terminal run `jcmd`, find the id of `SlowLock`, then run `jcmd <pid> Thread.print`. Find `git-loader` and the three threads that wait for its lock.
+
+All the files from this post:
+
+- [SlowLock.java](/code/java-blocked-threads-lock-owner/SlowLock.java): the program that holds the lock
+- [Fixed.java](/code/java-blocked-threads-lock-owner/Fixed.java): the same program with the slow work moved outside the lock (Fix 1)
+- [slowlock-jstack-java21.txt](/code/java-blocked-threads-lock-owner/slowlock-jstack-java21.txt): the thread dump I captured from it
+- [ide-freeze-thread-dump-trimmed.txt](/code/java-blocked-threads-lock-owner/ide-freeze-thread-dump-trimmed.txt): the trimmed dump from the IDE freeze
 
 > [!WARNING]
 > The program runs for ten minutes. Stop it with Ctrl+C when you are done, and run it only on your own machine.

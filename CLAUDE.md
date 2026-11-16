@@ -36,3 +36,5 @@ Readers are first-time readers and junior engineers. Teach slowly, in plain word
 - The author reviews the content, then asks for simplifications one section at a time. Do all the preparation first, then report what changed, what you verified and what you did not.
 - Content files may use Windows line endings. Edit scripts must keep them.
 - Java 21 is installed, so run Java examples for real.
+- **Files for readers.** When a post uses a demo program, thread dump, output or sample file, put it in `static/code/<post-slug>/` and link it from the post as `/code/<post-slug>/<file>`. The build copies `static/` to the site root, so readers download it from the same blog. Do not leave such files in `docs/`.
+- **Track every draft.** The author wants all drafts and their working files (demo programs, thread dumps, outputs) on GitHub so nothing is lost. When committing, add new draft posts and their demo files too, not only the post being published. The repo is public, so first scan the new files for names, company details, emails, paths, passwords and tokens.
