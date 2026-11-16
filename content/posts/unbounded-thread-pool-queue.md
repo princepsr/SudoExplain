@@ -1,6 +1,6 @@
 ---
 title: Unbounded thread pool queue: how it hides overload
-date: 2026-11-16
+date: 2026-11-11
 description: Why a thread pool with a fixed size still crashes under a traffic spike, how a hidden queue grows, and how to make overload fail fast instead.
 tags: java, concurrency, performance
 ---
