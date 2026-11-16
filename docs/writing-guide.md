@@ -230,7 +230,7 @@ Before publishing, read the post once as someone who started programming last mo
 2. **Replace it** with a plainer word.
 3. **Cut it**, if the post does not need it.
 
-Technical words are fine once they are explained. The aim is that nobody has to leave the page to understand it.
+Technical words are fine once they are explained. The aim is that nobody has to leave the page to understand it. When unsure whether a word needs explaining, explain it. Cutting an explanation later is easy, and a reader who is lost is not.
 
 ### Keep examples made up
 

@@ -211,7 +211,7 @@ So choose the mode first, and test your app with it. Transaction mode works only
 
 ## For all three: fail fast with a short timeout
 
-Whatever the cause, set a **short connection timeout** (a few seconds rather than 30), for example `spring.datasource.hikari.connection-timeout=3000`. When the pool is exhausted, you want requests to fail fast and free their threads, not queue for half a minute and pile up.
+Whatever the cause, set a **short connection timeout** (a few seconds rather than 30), for example `spring.datasource.hikari.connection-timeout=3000`. When the pool is exhausted, you want requests to fail fast and free their threads, not queue for half a minute and pile up. A thread pool has the same weakness when its waiting line has no limit, and it fails silently instead: [unbounded thread pool queue](/posts/unbounded-thread-pool-queue/).
 
 ## How to diagnose it
 

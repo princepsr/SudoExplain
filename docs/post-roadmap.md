@@ -12,7 +12,7 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 2 | Caching, scaling | Stale cache and cache stampede: why servers disagree | Two servers show different data; expiry causes a stampede | stale-caches-explained | done |
 | 3 | Java | Java memory leak: strong references and heap dumps | Leak through strong references (static map, listener, ThreadLocal) | java-memory-leak | done |
 | 4 | Java | Connection pool exhausted: why the app hangs under load | Leaked connections hang every request; more servers make it worse | connection-pool-exhausted | draft |
-| 5 | Java | Unbounded thread pool queue: how it hides overload | Executor queue grows until the server dies | unbounded-thread-pool-queue | draft |
+| 5 | Java | Unbounded thread pool queue: how it hides overload | Executor queue grows until the server dies | unbounded-thread-pool-queue | done |
 | 6 | Java | Race condition in Java: check-then-act explained | "If absent, put" loses data under load | race-condition-check-then-act | done |
 | 7 | Java, database | N+1 query problem: why one page runs 500 queries | One page triggers hundreds of queries after a data growth | n-plus-one-query-problem | draft |
 | 8 | Java | Java BigDecimal vs double for money: rounding errors | Floating point and rounding in money | java-bigdecimal-money-rounding | draft |
@@ -61,5 +61,6 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 51 | Database | Slow LIKE '%text%' search: fix it with a GIN index | A search box ignores the index and scans the whole table | like-wildcard-search-gin-index | draft (outline only) |
 | 53 | Java | Java weak vs strong references: why WeakHashMap leaks | A `WeakHashMap` "cache" either empties itself on every GC or still leaks | java-weak-vs-strong-references | draft |
 | 52 | Database | Covering index: answer a query without touching the table | `SELECT *` forces a table visit for every row; an index-only scan, or `INCLUDE`, avoids it | covering-index-only-scan | idea (no file yet) |
+| 54 | Java | Many threads BLOCKED: find the lock owner in a thread dump | One slow thread holds a lock and every other thread queues behind it; no deadlock report appears | java-blocked-threads-lock-owner | draft |
 
 Skipped on purpose: topics with no real production failure (what a URL is, what an index is in the abstract). A topic only earns a post if there is a bug people actually meet.

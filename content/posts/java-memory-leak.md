@@ -223,7 +223,7 @@ sessions.put(user, new Session(user));   // the Session holds the user
 
 If you are not sure where to start, start with the heap dump. It shows who is holding the memory in a few minutes, and guessing can take days.
 
-A queue that grows without limit is a close cousin of this leak. It is the same slow death from a different source. So is a leaked database connection: [the connection pool post](/posts/connection-pool-exhausted/) shows the same pattern with connections instead of memory.
+[A queue that grows without limit](/posts/unbounded-thread-pool-queue/) is a close cousin of this leak. It is the same slow death from a different source. So is a leaked database connection: [the connection pool post](/posts/connection-pool-exhausted/) shows the same pattern with connections instead of memory.
 
 ## The takeaway
 
