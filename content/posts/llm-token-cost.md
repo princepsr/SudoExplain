@@ -1,6 +1,6 @@
 ---
 title: LLM token cost: why bills explode and how to cap them
-date: 2026-11-17
+date: 2026-11-14
 description: Why an AI feature costs ten times the estimate, how growing history, big prompts and loops multiply tokens, and how to find and cap the spend.
 tags: LLM, cost
 ---
