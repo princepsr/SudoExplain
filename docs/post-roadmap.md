@@ -56,7 +56,7 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 46 | Observability | Correlation ID in logs: trace a request across microservices | One failed request is impossible to find among millions of log lines | correlation-id-logging | draft |
 | 47 | Scaling, cloud | Kubernetes autoscaling too late: why spikes cause outages | New instances arrive after the traffic spike has already caused errors | autoscaling-too-late | draft |
 | 48 | Operations | No space left on device: logs, inodes and log rotation | Logs fill the disk and the server stops working | disk-full-outage | draft |
-| 49 | AI | LLM hallucinations: validate AI output in production | The model invents a plausible answer and the system acts on it | llm-hallucinations | draft |
+| 49 | AI | LLM hallucinations: validate AI output in production | The model invents a plausible answer and the system acts on it | llm-hallucinations | done |
 | 50 | AI | Runaway AI agent: cap tool loops before they cost you | An agent calls tools in a loop with no limit | runaway-ai-agent | draft |
 | 51 | Database | Slow LIKE '%text%' search: fix it with a GIN index | A search box ignores the index and scans the whole table | like-wildcard-search-gin-index | draft (outline only) |
 | 53 | Java | Java weak vs strong references: why WeakHashMap leaks | A `WeakHashMap` "cache" either empties itself on every GC or still leaks | java-weak-vs-strong-references | draft |

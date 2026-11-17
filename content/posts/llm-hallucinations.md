@@ -1,9 +1,8 @@
 ---
 title: "LLM hallucinations: validate AI output in production"
-date: 2026-11-01
+date: 2026-11-17
 description: LLM hallucinations in production: why models invent answers and how to validate AI output with grounding, schemas, fact checks and human review.
 tags: LLM
-draft: true
 ---
 
 ## The question
@@ -19,18 +18,22 @@ You cannot make the model never invent things. You can make sure that nothing it
 > [!SUMMARY]
 > By the end you will know:
 >
-> 1. Why language models **invent** answers, in plain words
+> 1. Why models **invent** answers, and why a confident tone tells you nothing
 > 2. The ways that trusting model output breaks real systems
 > 3. Layers of defense: grounding, schemas, fact checks, citations, "I don't know" and human review
 > 4. How to **diagnose** and measure the problem with logs and a fixed test set
 
 ## First, why it happens
 
-A **large language model** (LLM) is a program trained on huge amounts of text to predict which words are likely to come next. It does not look facts up. It writes the text that fits the pattern of the question and its context.
+A model writes the text that is most likely to come next. It does not look facts up, and it has no built-in way to say "I do not know". A wrong answer comes out in the same fluent style as a right one, so the tone carries no signal.
 
-When the true answer is common in its training text, the likely text is often correct. When the question is rare, recent, or specific to your company, the model still writes something fluent. That fluent, wrong text is called a **hallucination**.
+For an engineer, it helps to split hallucinations into three kinds, because the fixes differ:
 
-Think of a very well-read colleague who hates saying "I don't know" and always answers. They are often right, but their tone is the same when they are wrong. The analogy stops here: a person can feel unsure, but a model's confident tone is no reliable sign that it is right.
+1. **The fact is missing.** The question is rare, recent or specific to your company, and the model fills the gap with likely text. This is the 90-day refund policy.
+2. **The fact is in the prompt, but the model does not stick to it.** You supplied the right document and the answer still drifts from it, for example in a summary.
+3. **An identifier is invented.** An order ID, a function name, a citation. It has the right shape, so it looks real.
+
+Grounding (Fix 1) mainly helps with the first kind. The second kind needs checks on the answer, and the third needs a lookup in the real system (Fix 3).
 
 ## The failure on a small case
 
@@ -58,31 +61,33 @@ The rule behind every fix: treat model output as **untrusted input**, just like 
 
 ## How to diagnose it
 
-**1. Log every prompt and output.** Record the full prompt, the retrieved documents, the model's answer, the model version and a request ID. See [the correlation ID post](/posts/correlation-id-logging/). Without logs you cannot study a failure after the fact.
+**1. Log every prompt and output.** Record the full prompt, the retrieved documents, the model's answer, the model version and a request ID that follows the request through every service (a topic of its own). Without logs you cannot study a failure after the fact.
 
 **2. Sample and review.** Each week, read a random sample of answers, and add every complaint. Mark each answer as correct, wrong, or unsupported by the sources.
 
-**3. Build an evaluation set from real failures.** An **evaluation set** is a fixed list of questions with known good answers. Start with every incident you have seen, and add tricky questions: unknown order IDs, questions the documents do not cover, and policy edge cases.
+**3. Count rejections by rule.** Once you have the checks from Fix 2 and Fix 3, log which rule rejected each answer: bad shape, unknown ID, amount too high, unknown citation. The rejection rate per rule is a live signal. If "unknown ID" jumps after a model or prompt change, you have found a regression before a customer did.
 
-**4. Re-run it on every change.** A new model version, a new prompt or a new document set can all change behavior. A fixed set tells you whether things got better or worse. This post states no failure rates because they depend on the model, the task and the data. Measure your own.
+**4. Build an evaluation set from real failures.** An **evaluation set** is a fixed list of questions with known good answers. Start with every incident you have seen, and add tricky questions: unknown order IDs, questions the documents do not cover, and policy edge cases.
+
+**5. Re-run it on every change.** A new model version, a new prompt or a new document set can all change behavior. A fixed set tells you whether things got better or worse. This post states no failure rates because they depend on the model, the task and the data. Measure your own.
 
 ## Fix 1: ground the answer in retrieved sources
 
-**What it is:** **grounding** means giving the model the real documents and telling it to answer only from them. The usual technique, **retrieval**, searches your documents first and pastes the best matches into the prompt.
+**What it is:** give the model the real documents, usually by retrieval, and tell it to answer only from them.
 
-**How it works:** the model now has the true 30-day policy in front of it, so the likely text is the correct one. See [the RAG post](/posts/rag-wrong-answers/) for how retrieval itself can fail.
+**How it works:** the model now has the true 30-day policy in front of it, so the likely text is the correct one. How retrieval itself can fail is a topic of its own.
 
-**What it costs:** a search system to build and maintain, and longer prompts, which cost more. Grounding reduces invention but does not remove it.
+**What it costs:** a search system to build and maintain, and longer prompts, which cost more (see [the token cost post](/posts/llm-token-cost/)). Grounding reduces invention but does not remove it.
 
 ## Fix 2: constrain the output and validate it in code
 
-**What it is:** ask for a fixed shape, such as JSON with named fields, and check it with ordinary code before using it. A **schema** describes the allowed fields and types.
+**What it is:** ask for a fixed shape, such as JSON with named fields, and check it with ordinary code before using it.
 
 **How it works:** reject anything that is not valid. Many model APIs can enforce a schema while generating. The format is then usually guaranteed, except when the model refuses or the output is cut off at the token limit, so still parse and validate it. Even then the format is guaranteed, not the truth. A perfectly formed `{"orderId": "A-9999"}` can still be invented.
 
 ## Fix 3: check every fact against the source of truth
 
-**What it is:** the **source of truth** is the system that really owns the data, such as your orders database. Check each ID, amount and reference against it before acting.
+**What it is:** the source of truth is the system that really owns the data, such as your orders database. Check each ID, amount and reference against it before acting.
 
 Here is the idea as pseudocode:
 
@@ -99,7 +104,7 @@ act(result)
 And a runnable Node version with no libraries. It checks the shape first, then the facts:
 
 ```javascript
-const orders = new Map([["A-1001", { total: 80, refundable: true }]]);
+const orders = new Map([["A-1001", { totalCents: 8000, refundable: true }]]);
 const sources = ["doc-1", "doc-2"]; // documents we actually gave the model
 
 function validate(out) {
@@ -112,14 +117,14 @@ function validate(out) {
   if (!order) errors.push("order " + out.orderId + " does not exist");
   else {
     if (!order.refundable) errors.push("order is not refundable");
-    if (out.refundCents > order.total * 100) errors.push("refund exceeds order total");
+    if (out.refundCents > order.totalCents) errors.push("refund exceeds order total");
   }
   if (!sources.includes(out.citation)) errors.push("citation " + out.citation + " was never provided");
   return errors;
 }
 ```
 
-Run on four sample outputs, the real output was:
+Run on four sample outputs with Node 24, the real output was:
 
 ```text
 {"orderId":"A-1001","refundCents":5000,"citation":"doc-1"} -> ACCEPT
@@ -128,7 +133,7 @@ Run on four sample outputs, the real output was:
 {"orderId":"A-1001","refundCents":"fifty","citation":"doc-1"} -> REJECT: refundCents must be a non-negative integer
 ```
 
-The $80 order has a total of 8,000 cents, so 50,000 cents is rejected. Working in whole cents avoids rounding errors; see [the money rounding post](/posts/java-bigdecimal-money-rounding/).
+The $80 order has a total of 8,000 cents, so 50,000 cents is rejected. Money is kept in whole cents so the comparison has no rounding error. Money rounding is a topic of its own.
 
 **What it costs:** a check per action, and the checks must be maintained as rules change. It is the layer that stops the worst harm.
 
@@ -148,7 +153,7 @@ For actions you cannot reverse, such as large refunds, deleting data or sending 
 
 These three are the ones that look like fixes but are not.
 
-**1. Lowering the temperature.** **Temperature** is a setting that controls how random the output is. It is tempting to turn it down, because a calm model sounds like a careful one.
+**1. Lowering the temperature.** It is tempting to turn it down, because a calm model sounds like a careful one.
 
 But a low value only makes the model pick its most likely words more often. Ask "How many days do refunds take?" ten times, and a low setting gives you nearly the same answer each time. If that answer is "90 days" and the policy says 30, you now have the same wrong answer again and again, and it looks even more trustworthy. Repeatable is not the same as true. Use grounding and fact checks (Fixes 1 and 3) for truth, and use temperature only to tune style.
 
@@ -158,12 +163,13 @@ A judge is more useful when it can compare the answer with the retrieved documen
 
 **3. Trusting model-written code or SQL.** A model can write code that calls a function that does not exist, or a query that does too much. Suppose a user says "clean up my old test orders" and the model writes `DELETE FROM orders WHERE status = 'test'`, but some real orders also carry that status. The query is valid, so nothing complains, and the rows are gone.
 
-Protect yourself in layers. Run generated SQL with a database account that can only read. Try generated code in a sandbox, an isolated place where a mistake cannot reach real data. For anything that writes or deletes, show the exact statement to a person first (Fix 6).
+Protect yourself in layers. Run generated SQL with a database account that can only read. Try generated code in a sandbox where a mistake cannot reach real data. For anything that writes or deletes, show the exact statement to a person first (Fix 6).
 
 Shorter ones:
 
 - **Validation of format only.** Valid JSON with an invented ID passes a schema check. Check the facts.
-- **Letting untrusted text steer the model.** A document or web page can contain instructions that the model follows. See [the prompt injection post](/posts/prompt-injection/).
+- **Grounding on stale documents.** If the index still holds last year's 90-day policy, the model quotes it faithfully and cites a real document, and the answer is still wrong. Keep the documents current, and remove old versions.
+- **Letting untrusted text steer the model.** A document or web page can contain instructions that the model follows. Prompt injection is a topic of its own.
 - **No evaluation set.** Without one, every change is a guess.
 
 ## Which should you use?
