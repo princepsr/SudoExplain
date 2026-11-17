@@ -311,6 +311,8 @@ The cost of the lock is a little more code, and one more thing that can go wrong
 
 If you are not sure, start with a short TTL. It is the easiest to understand and the easiest to remove. Move to versions or invalidation when "a minute out of date" turns out to matter to real users.
 
+A cache can save money as well as time. When every answer costs tokens from an AI model, reusing a saved answer avoids paying again. The [LLM token cost post](/posts/llm-token-cost/) shows where that spend comes from.
+
 Two more things are worth looking up once this makes sense. Two updates arriving at the same moment can leave a wrong value in the cache for good, which is a **race condition**. And a cache with no size limit slowly fills the server's memory. Both are common in production, and each deserves a post of its own.
 
 ## The takeaway

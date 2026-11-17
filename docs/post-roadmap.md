@@ -32,7 +32,7 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 22 | Design | Saga pattern: when step 3 of 4 fails across services | A multi-service action fails halfway (saga pattern) | saga-pattern | draft |
 | 23 | AI | Prompt injection: when a web page hijacks your AI | A web page hijacks the AI assistant that reads it | prompt-injection | draft |
 | 24 | AI | RAG wrong answers: why retrieval fails and how to fix it | A retrieval (RAG) system finds the wrong text | rag-wrong-answers | draft |
-| 25 | AI | LLM token cost: why bills explode and how to cap them | Tokens, context growth and retry loops | llm-token-cost | draft |
+| 25 | AI | LLM token cost: why bills explode and how to cap them | Tokens, context growth and retry loops | llm-token-cost | done |
 | 26 | Java | Java GC pauses: why latency spikes and how to find them | Stop-the-world pauses freeze requests every few minutes | java-gc-pauses | draft |
 | 27 | Java, containers | Java OOMKilled in Docker (exit code 137): why it dies | The container limit kills the JVM although the heap looks healthy | java-docker-oomkilled | draft |
 | 28 | Java | Java thread deadlock: find it with a thread dump | Two threads wait for each other's locks and the service hangs | java-thread-deadlock | draft |
