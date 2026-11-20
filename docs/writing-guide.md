@@ -56,7 +56,7 @@ draft: true
 | `title` | Put the phrase people would search for first (for example "N+1 query problem: ..."), keep it specific, and stay under 60 characters so search results do not cut it off. The file name becomes the address, so use the same key words in it, short and without filler words |
 | `date` | The publish date, as `YYYY-MM-DD` |
 | `description` | One sentence under 160 characters saying what the reader will understand. It appears in lists and in search results |
-| `tags` | Two to four topics, separated by commas. Look at the Topics page and reuse existing tags, because related posts are matched by tag. Write plain words in lowercase (`networking`, `system-design`) and the site capitalises them for you. Write acronyms in capitals (`AI`, `JWT`), because `ai` would be shown as "Ai" |
+| `tags` | Two to four topics, separated by commas. Look at the Topics page and reuse existing tags, because related posts are matched by tag. A tag names a subject readers look for, such as `java` or `postgresql`, not a general word such as `cost` or `tips`. Name the subject in full: `LLM cost`, not `cost`. Write plain words in lowercase (`networking`, `system-design`) and the site capitalises them for you. Write acronyms in capitals (`AI`, `JWT`), because `ai` would be shown as "Ai" |
 | `draft` | Leave `true` while writing. Delete the line when you are ready to publish |
 
 There are a few more optional fields, such as `updated`. They are listed in [writing.md](writing.md).

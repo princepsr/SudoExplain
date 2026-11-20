@@ -24,7 +24,7 @@ Readers are first-time readers and junior engineers. Teach slowly, in plain word
   Then tell the author which words you defined, replaced or cut, so they can remove any they do not need.
 - A published post must never link to a draft. Use plain text and add a row to `docs/pending-links.md`. When a draft is published, turn its pending rows into links and add the inbound links the new post should receive.
 - Every published post links to one or two related published posts and receives at least one link back.
-- Title: starts with the phrase people search, at most 60 characters. Description: one sentence under 160 characters. Tags: reuse existing ones. A topic page appears only when `content/topics/<tag>.md` exists and two posts with that tag are published, so check this after a push.
+- Title: starts with the phrase people search, at most 60 characters. Description: one sentence under 160 characters. Tags: reuse existing ones. A tag names a subject readers look for, such as a technology (`java`, `postgresql`, `LLM`) or a named problem area (`concurrency`, `caching`). Never use a general word such as `cost`, `tips`, `basics` or `languages`. Name the subject in full, for example `LLM cost` and not `cost`. A topic page appears only when `content/topics/<tag>.md` exists and two posts with that tag are published, so check this after a push.
 - Every published post needs a share card: `node og-images.mjs`. It takes a few minutes, so run it in the background. It can print `FAILED` for a card that was written fine, so look at the image.
 - When you add a diagram, number the figures again so they run 1, 2, 3 in order.
 - Run `node build.mjs --check` and `node build.mjs` before saying a post is ready.
