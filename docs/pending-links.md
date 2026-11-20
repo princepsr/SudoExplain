@@ -17,9 +17,8 @@ A live post must never link to a draft, because the link would be dead. Where a 
 | `llm-token-cost` | "Fix 2", first bullet: "Making retrieval find the right text is a topic of its own" | `/posts/rag-wrong-answers/` | `rag-wrong-answers` |
 | `llm-token-cost` | "Fix 3", first bullet: "Stopping a runaway agent is a topic of its own" | `/posts/runaway-ai-agent/` | `runaway-ai-agent` |
 | `llm-token-cost` | "Fix 3", budgets bullet: "Rate limiting is a topic of its own" | `/posts/rate-limiting-token-bucket/` | `rate-limiting-token-bucket` |
-| `llm-hallucinations` | "How to diagnose it", step 1: "a request ID that follows the request through every service (a topic of its own)" | `/posts/correlation-id-logging/` | `correlation-id-logging` |
-| `llm-hallucinations` | "Fix 1", "How it works": "How retrieval itself can fail is a topic of its own" | `/posts/rag-wrong-answers/` | `rag-wrong-answers` |
-| `llm-hallucinations` | "Fix 3", after the sample output: "Money rounding is a topic of its own" | `/posts/java-bigdecimal-money-rounding/` | `java-bigdecimal-money-rounding` |
+| `llm-hallucinations` | "Fix 2", last paragraph: "Why a lookup itself fails is a topic of its own" | `/posts/rag-wrong-answers/` | `rag-wrong-answers` |
+| `llm-hallucinations` | "Fix 4", last paragraph: "Money rounding is a topic of its own" | `/posts/java-bigdecimal-money-rounding/` | `java-bigdecimal-money-rounding` |
 | `llm-hallucinations` | "When the fix goes wrong", shorter ones: "Prompt injection is a topic of its own" | `/posts/prompt-injection/` | `prompt-injection` |
 
 Also: when a draft is published, link back to it from 1 or 2 older posts, and make sure it links to 2 or 3 related posts.

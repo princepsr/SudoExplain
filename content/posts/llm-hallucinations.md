@@ -1,48 +1,55 @@
 ---
-title: "LLM hallucinations: validate AI output in production"
+title: "LLM hallucinations: diagnose and fix them in production"
 date: 2026-11-17
-description: LLM hallucinations in production: why models invent answers and how to validate AI output with grounding, schemas, fact checks and human review.
+description: Why an AI assistant states wrong facts with confidence, how to find where a wrong answer came from, and the fixes production teams use.
 tags: LLM, LLM hallucinations
 ---
 
 ## The question
 
-A shop adds an AI assistant to its support chat. A customer asks about a refund. The assistant replies, in a calm and confident tone, "Our policy allows refunds within 90 days," and offers to process one.
+A shop's AI assistant tells a customer, calmly and confidently, "Our policy allows refunds within 90 days," and issues the refund. The real policy is 30 days, and finance finds out a month later.
 
-The real policy is 30 days. The system believed the assistant, issued the refund, and finance found out a month later. Nobody had lied. The model simply produced a sentence that sounded right.
+> The assistant sounded completely sure and was completely wrong. How do I stop my system from acting on that?
 
-> "The model sounded completely sure and it was completely wrong. How do I stop my system from acting on that?"
-
-You cannot make the model never invent things. You can make sure that nothing it says reaches a customer, a database or a payment without being checked first.
+You cannot make a model never invent things. You can make sure it never has the last word on a fact or an action.
 
 > [!SUMMARY]
 > By the end you will know:
 >
-> 1. Why models **invent** answers, and why a confident tone tells you nothing
-> 2. The ways that trusting model output breaks real systems
-> 3. Layers of defense: grounding, schemas, fact checks, citations, "I don't know" and human review
-> 4. How to **diagnose** and measure the problem with logs and a fixed test set
+> 1. How an AI assistant produces an answer, and the three places where a wrong answer can come from
+> 2. Real cases where a made-up answer caused real damage
+> 3. How to **diagnose** which place went wrong, by reading a record of the answer
+> 4. Four fixes that production teams use, and which place each one protects
 
-## First, why it happens
+## First, how an assistant answers
 
-A model writes the text that is most likely to come next. It does not look facts up, and it has no built-in way to say "I do not know". A wrong answer comes out in the same fluent style as a right one, so the tone carries no signal.
+**The model.** An AI assistant is built on a language model, a program trained on huge amounts of text. It has one skill: given some text, it writes the words that are most likely to come next. It does not look facts up, and it has no built-in way to say "I do not know".
 
-For an engineer, it helps to split hallucinations into three kinds, because the fixes differ:
+**What your code adds.** A company assistant is more than the model. Before the model sees a question, your code usually looks up documents that match it, such as your refund policy. This lookup is called **retrieval**. Your code then puts the question and the documents together into one block of text, the **prompt**, and sends it to the model. The model writes its answer from that prompt.
 
-1. **The fact is missing.** The question is rare, recent or specific to your company, and the model fills the gap with likely text. This is the 90-day refund policy.
-2. **The fact is in the prompt, but the model does not stick to it.** You supplied the right document and the answer still drifts from it, for example in a summary.
-3. **An identifier is invented.** An order ID, a function name, a citation. It has the right shape, so it looks real.
+```diagram
+type: flow
+alt: A question goes through a document lookup, becomes a prompt with the documents, and the model writes the answer from it.
+caption: Figure 1. How an assistant produces an answer.
+Question -> Your code looks up documents -> Question + documents become the prompt -> Model writes the answer -> Answer reaches the user
+```
 
-Grounding (Fix 1) mainly helps with the first kind. The second kind needs checks on the answer, and the third needs a lookup in the real system (Fix 3).
+**Where a wrong answer can come from.** Follow the flow in Figure 1, and a wrong answer can start in three places:
 
-## The failure on a small case
+1. **The right fact never reached the prompt.** The lookup found nothing, or found an old version of the document, or the fact is in no document at all. The model has nothing true to go on, so it writes likely-sounding text. The 90-day refund policy is this kind.
+2. **The right fact was in the prompt, but the answer changed it.** The document says "30 days, unopened items only", and the answer says "any item within 30 days".
+3. **The answer contains something nobody gave the model.** An order ID, a function name or a citation. It has the right shape, so it looks real.
 
-Suppose an assistant helps support agents and can call a tool to issue refunds. The model must provide an order ID and an amount.
+In all three cases the wrong answer looks exactly like a right one: the same tone and the same format. Nothing in the text itself tells you it is wrong.
+
+## The failure: someone acts on it
+
+Suppose an assistant helps support agents, and it can use a **tool**: a function your code lets the model ask for, such as "refund this order". The model must provide an order ID and an amount.
 
 ```diagram
 type: sequence
 alt: The model invents an order ID and the system issues a refund on it without checking.
-caption: Figure 1. The system acted on text that nobody verified.
+caption: Figure 2. The system acted on text that nobody verified.
 actors: Customer | Model | System
 Customer -> Model: refund my last order
 Model --> System: refund order A-9999, $50 !
@@ -50,145 +57,224 @@ note System: A-9999 was never checked
 System -> Customer: refund on unchecked ID !
 ```
 
-The ID `A-9999` looked plausible, so nothing stopped it. The same pattern shows up in several ways:
+The ID `A-9999` looked plausible, so nothing stopped it. The same pattern has happened in real systems:
 
-- A **function that does not exist.** A coding assistant calls `list.sortByKey()`, and the build fails, or worse, it passes review.
-- A **policy that does not exist.** The refund example above.
-- A **citation that does not exist.** A report quotes "Smith et al., 2021", which nobody wrote.
-- A **database ID that does not exist**, or one that belongs to someone else.
-
-The rule behind every fix: treat model output as **untrusted input**, just like text typed by a stranger.
+- **Air Canada, 2024.** Its chatbot told a customer he could claim a bereavement fare discount after his trip. The airline's real policy did not allow that. A Canadian tribunal (Moffatt v. Air Canada) held the airline responsible for what its chatbot said and ordered it to pay about $812.
+- **A lawyer's court brief, 2023.** Two New York lawyers filed a brief with case citations from ChatGPT. Six of the cases did not exist, and the judge fined the lawyers and their firm $5,000 (Mata v. Avianca).
+- **Package names, 2024.** A study of 16 code-generation models found that about 5% of the packages recommended by commercial models, and about 22% from open models, did not exist. An attacker can publish a real, malicious package under a name that models keep inventing.
 
 ## How to diagnose it
 
-**1. Log every prompt and output.** Record the full prompt, the retrieved documents, the model's answer, the model version and a request ID that follows the request through every service (a topic of its own). Without logs you cannot study a failure after the fact.
+When a complaint arrives, do not start with "why did the model lie?" Start with "what did the model actually see?" Diagnosing means finding which of the three places went wrong. You can only do that if you saved what happened.
 
-**2. Sample and review.** Each week, read a random sample of answers, and add every complaint. Mark each answer as correct, wrong, or unsupported by the sources.
+**1. Save a record of every answer.** For each answer, keep the question, the documents the lookup found (with their version numbers), the model version, any tool results, and the answer. Such a record is often called a **trace**. Keep it in a plain database table, or in a tool made for this, such as Langfuse, LangSmith or Arize Phoenix. Without it you are guessing. This is the record of a refund complaint (the values are made up):
 
-**3. Count rejections by rule.** Once you have the checks from Fix 2 and Fix 3, log which rule rejected each answer: bad shape, unknown ID, amount too high, unknown citation. The rejection rate per rule is a live signal. If "unknown ID" jumps after a model or prompt change, you have found a regression before a customer did.
-
-**4. Build an evaluation set from real failures.** An **evaluation set** is a fixed list of questions with known good answers. Start with every incident you have seen, and add tricky questions: unknown order IDs, questions the documents do not cover, and policy edge cases.
-
-**5. Re-run it on every change.** A new model version, a new prompt or a new document set can all change behavior. A fixed set tells you whether things got better or worse. This post states no failure rates because they depend on the model, the task and the data. Measure your own.
-
-## Fix 1: ground the answer in retrieved sources
-
-**What it is:** give the model the real documents, usually by retrieval, and tell it to answer only from them.
-
-**How it works:** the model now has the true 30-day policy in front of it, so the likely text is the correct one. How retrieval itself can fail is a topic of its own.
-
-**What it costs:** a search system to build and maintain, and longer prompts, which cost more (see [the token cost post](/posts/llm-token-cost/)). Grounding reduces invention but does not remove it.
-
-## Fix 2: constrain the output and validate it in code
-
-**What it is:** ask for a fixed shape, such as JSON with named fields, and check it with ordinary code before using it.
-
-**How it works:** reject anything that is not valid. Many model APIs can enforce a schema while generating. The format is then usually guaranteed, except when the model refuses or the output is cut off at the token limit, so still parse and validate it. Even then the format is guaranteed, not the truth. A perfectly formed `{"orderId": "A-9999"}` can still be invented.
-
-## Fix 3: check every fact against the source of truth
-
-**What it is:** the source of truth is the system that really owns the data, such as your orders database. Check each ID, amount and reference against it before acting.
-
-Here is the idea as pseudocode:
-
-```text
-result = model.answer(question, documents)
-if not matches_schema(result):          reject
-order = database.find(result.orderId)
-if order is missing:                    reject
-if result.amount > order.total:         reject
-if result.citation not in documents:    reject
-act(result)
-```
-
-And a runnable Node version with no libraries. It checks the shape first, then the facts:
-
-```javascript
-const orders = new Map([["A-1001", { totalCents: 8000, refundable: true }]]);
-const sources = ["doc-1", "doc-2"]; // documents we actually gave the model
-
-function validate(out) {
-  const errors = [];
-  if (typeof out.orderId !== "string") errors.push("orderId must be a string");
-  if (!Number.isInteger(out.refundCents) || out.refundCents < 0) errors.push("refundCents must be a non-negative integer");
-  if (typeof out.citation !== "string") errors.push("citation must be a string");
-  if (errors.length) return errors;               // stop: shape is wrong
-  const order = orders.get(out.orderId);           // facts: check the real record
-  if (!order) errors.push("order " + out.orderId + " does not exist");
-  else {
-    if (!order.refundable) errors.push("order is not refundable");
-    if (out.refundCents > order.totalCents) errors.push("refund exceeds order total");
-  }
-  if (!sources.includes(out.citation)) errors.push("citation " + out.citation + " was never provided");
-  return errors;
+```json
+{
+  "requestId": "r-1",
+  "question": "Can I still get a refund?",
+  "modelVersion": "model-2026-05",
+  "documents": [
+    { "doc": "refund-policy", "version": 3,
+      "text": "Refunds are allowed within 90 days." }
+  ],
+  "toolResults": [],
+  "answer": "Our policy allows refunds within 90 days."
 }
 ```
 
-Run on four sample outputs with Node 24, the real output was:
+**2. Read the record with three questions.** Each question points to one of the three places:
 
-```text
-{"orderId":"A-1001","refundCents":5000,"citation":"doc-1"} -> ACCEPT
-{"orderId":"A-9999","refundCents":5000,"citation":"doc-1"} -> REJECT: order A-9999 does not exist
-{"orderId":"A-1001","refundCents":50000,"citation":"doc-7"} -> REJECT: refund exceeds order total; citation doc-7 was never provided
-{"orderId":"A-1001","refundCents":"fifty","citation":"doc-1"} -> REJECT: refundCents must be a non-negative integer
+1. Is every ID in the answer also in the prompt (the documents and tool results)? An ID that only the answer contains could not have been read anywhere, so the model made it up (place 3).
+2. Are the documents the newest versions? If not, the model was given an old fact (place 1).
+3. Is every number in the answer also in the documents? If not, the number was a guess, because the real fact was missing (place 1).
+
+If all three pass and the answer is still wrong, the model probably changed what the document says (place 2). Only a person, or the second-model check in step 3 (called "the checker" below), can judge that.
+
+The first three questions are simple comparisons, so code can ask them. [Triage.java](/code/llm-hallucinations/Triage.java) does it. ("Triage" means sorting cases by their cause.) This is its main method, shortened:
+
+```java
+// the newest version of each document in the real system
+static final Map<String, Integer> CURRENT =
+    Map.of("refund-policy", 4);
+
+static List<String> triage(Trace t) {
+    // everything the model was shown
+    String seen = textOfDocumentsAndToolResults(t);
+    List<String> found = new ArrayList<>();
+
+    // 1. IDs in the answer that the model was never shown
+    Matcher id = ID.matcher(t.answer());
+    while (id.find()) {
+        if (!seen.contains(id.group()))
+            found.add("invented ID: " + id.group());
+    }
+    // 2. documents that are not the newest version
+    for (Document d : t.documents()) {
+        int now = CURRENT.getOrDefault(d.doc(), 0);
+        if (d.version() < now)
+            found.add("old document: " + d.doc() + " v"
+                + d.version() + ", newest is v" + now);
+    }
+    // 3. numbers in the answer that no document contains
+    // (same idea as 1, with a number pattern)
+    ...
+    return found;
+}
 ```
 
-The $80 order has a total of 8,000 cents, so 50,000 cents is rejected. Money is kept in whole cents so the comparison has no rounding error. Money rounding is a topic of its own.
+Run on three records with Java 21.0.2, the real output was:
 
-**What it costs:** a check per action, and the checks must be maintained as rules change. It is the layer that stops the worst harm.
+```text
+r-1 -> [old document: refund-policy v3, newest is v4]
+r-2 -> [nothing found: send to the checker]
+r-3 -> [invented ID: A-9999]
+```
 
-## Fix 4: require citations, and verify them
+Here is how to read it:
 
-Ask the model to name the source for each claim. Then check in code that each cited source was in the documents you supplied, as `validate` does above. A citation to a document you never provided is a red flag. Citing a real document does not prove the document says that, so spot-check the content for important claims.
+- **r-1** is the record above. The model did not invent "90 days". It copied a document faithfully, and that document was version 3 of a policy that is now at version 4. Without the record, the blame would have gone to the model.
+- **r-2** has the newest document, "30 days, unopened items only", and the answer says "any item within 30 days". Every number is present, so the code finds nothing. The meaning changed, and this case needs the checker.
+- **r-3** says "I have refunded order A-9999", but the tool results list only A-1001 and A-1002. The ID appears nowhere the model could have read it, so the model made it up.
 
-## Fix 5: allow "I don't know"
+**3. Watch all answers, not only complaints.** Steps 1 and 2 find one case at a time. To watch everything, let a second model check a sample of real answers in the background. It gets the answer and the documents, and must say whether the documents back up each statement. Without the documents it would have nothing to check against, and would often just agree. The prompt:
 
-Tell the model in the prompt that "I don't know" or "not in the documents" is an acceptable answer. Add test questions with no answer and count a made-up reply as a failure. Without this, a model has no easy way out when the documents do not cover a question.
+```text
+Documents: {documents}
+Answer: {answer}
 
-## Fix 6: keep a human in the loop for what cannot be undone
+For each statement in the answer, reply SUPPORTED or
+UNSUPPORTED, and quote the sentence from the documents
+that backs it. Reply as JSON.
+```
 
-For actions you cannot reverse, such as large refunds, deleting data or sending email, have a person approve the action. Show them the exact action and the evidence, not just the model's summary. This is the last line of defense, and it costs time on every approval.
+A statement the documents do not back up is an **unsupported claim**. Save the count for each answer, and graph the rate. This query (PostgreSQL) gives the rate per prompt version over the last week:
+
+```sql
+SELECT prompt_version,
+       count(*) AS checked,
+       round(avg((unsupported_claims > 0)::int), 3)
+           AS unsupported_rate
+FROM answer_checks
+WHERE checked_at > now() - interval '7 days'
+GROUP BY prompt_version
+ORDER BY prompt_version;
+```
+
+Set an alert for when the rate rises.
+
+## Fix 1: let your systems supply the facts
+
+Give each part the job it is good at. The model understands the question and writes the reply. Your systems hold the facts, such as an order status, a balance or the refund window. So the model should not write a fact. It asks a tool, and the reply is built from what the tool returns. In the opening story, the "30 days" would come from the policy system, and the model could not "remember" 90.
+
+When the model must choose an ID, it chooses from a list your code supplied, and code turns the choice into the real ID:
+
+```pseudocode
+orders  = ordersFor(customer)        # code supplies the choices
+choice  = model.pick(question, options = orders)
+orderId = orders[choice].id          # code maps it to the real ID
+```
+
+**What it costs:** a tool for each fact. Facts that live only in documents still need Fix 2.
+
+## Fix 2: fix the documents and the lookup first
+
+When the answer comes from documents, check what the lookup returned before you blame the model. Two common problems:
+
+- **An old version is still searchable.** Remove old versions, and give every document a version number.
+- **A rule is separated from its exception.** Documents are cut into small pieces for searching. Cut by section, so a rule and its exception stay together.
+
+Also let the lookup decide whether to answer. Each result has a match score. If the best score is too low, do not let the model answer from memory. Reply "I do not have that" and hand the question to a person. Why a lookup itself fails is a topic of its own.
+
+## Fix 3: check each statement against its documents
+
+When the answer must stay close to a document, make the model show its proof. Ask it to quote, word for word, the sentence that backs each statement. Then let code check that the quote really appears in the documents. A statement without a real quote is dropped, or the answer goes to a person. Anthropic's guidance on reducing hallucinations recommends quotes for this reason.
+
+Some services offer a ready-made version. Amazon Bedrock Guardrails has a "contextual grounding check" that scores an answer against the source text and blocks it below a score you set.
+
+**What it costs:** extra tokens (see [the token cost post](/posts/llm-token-cost/)) and a delay on every answer, so use it where a wrong statement is expensive.
+
+## Fix 4: put a guard in front of every action
+
+The model proposes, and code decides. Before an action runs, code checks what the model cannot know. Does the order exist? Does it belong to this customer? Is the amount allowed?
+
+```java
+// above this amount, a person must approve
+static final long AUTO_LIMIT_CENTS = 5000;
+
+static String guard(String customerId, Request req) {
+    Order order = ORDERS.get(req.orderId());
+    if (order == null)
+        return "reject: order does not exist";
+    if (!order.customerId().equals(customerId))
+        return "reject: order belongs to someone else";
+    if (!order.refundable())
+        return "reject: order is not refundable";
+    long cents = req.refundCents();
+    if (cents <= 0)
+        return "reject: bad amount";
+    if (cents > order.totalCents())
+        return "reject: refund exceeds order total";
+    if (cents > AUTO_LIMIT_CENTS)
+        return "needs approval: above the automatic limit";
+    return "allow";
+}
+```
+
+`ORDERS` maps each order ID to the real order. [Guard.java](/code/llm-hallucinations/Guard.java) has the whole program. Run on five requests with Java 21.0.2, the real output (customer, order, amount in cents) was:
+
+```text
+c-7 A-1001 3000 -> allow
+c-7 A-9999 3000 -> reject: order does not exist
+c-9 A-1001 3000 -> reject: order belongs to someone else
+c-7 A-1001 7000 -> needs approval: above the automatic limit
+c-7 A-1001 50000 -> reject: refund exceeds order total
+```
+
+**How to guard an action.** Do this for every action the model can ask for:
+
+1. **List what the model supplies.** For a refund, an order ID and an amount. Treat both as guesses.
+2. **Write one check for each.** The order must exist and belong to this customer, and the amount must be above zero and within the order total. Each check is one `if` in the code above.
+3. **Match the approval to the risk.** A small refund passes the guard alone (the $50 limit is `AUTO_LIMIT_CENTS`). Large or irreversible actions, such as a big refund, deleting data or sending email, also wait for a person. Not everything, or the assistant saves nobody any time.
+
+Log every rejection with its reason. A jump in "order does not exist" after a prompt change is a problem you found before a customer did.
+
+Money is kept in whole cents to avoid rounding errors. Money rounding is a topic of its own.
+
+**What it costs:** rules to write and keep current. This is the layer that limits the harm when everything else fails.
 
 ## When the fix goes wrong
 
-These three are the ones that look like fixes but are not.
+These two look like fixes but are not.
 
-**1. Lowering the temperature.** It is tempting to turn it down, because a calm model sounds like a careful one.
+**1. Turning the temperature down.** *Temperature* is a setting that controls how random the model's word choice is. Turning it down feels safer, because a calm model sounds careful.
 
-But a low value only makes the model pick its most likely words more often. Ask "How many days do refunds take?" ten times, and a low setting gives you nearly the same answer each time. If that answer is "90 days" and the policy says 30, you now have the same wrong answer again and again, and it looks even more trustworthy. Repeatable is not the same as true. Use grounding and fact checks (Fixes 1 and 3) for truth, and use temperature only to tune style.
+But a low temperature only makes the model pick its most likely words more often. Ask "How many days do refunds take?" ten times, and you get nearly the same answer each time. If that answer is "90 days" and the policy says 30, you now have the same wrong answer every time, and it looks even more trustworthy. Repeatable is not the same as true. Use Fixes 1 to 3 for truth, and use temperature only to tune style.
 
-**2. A second model as judge.** The idea is to ask another model "is this answer correct?" before the customer sees it. The trouble is that a judge only has the text in front of it. "Refunds are allowed within 90 days" reads fluent and sure, so a judge with no access to the policy often agrees. Two models trained on similar text can share the same blind spots.
+**2. Trusting model-written code or SQL.** A model can write code that calls a function that does not exist, or a query that does too much. Suppose a user says "clean up my old test orders" and the model writes `DELETE FROM orders WHERE status = 'test'`, but some real orders also carry that status. The query is valid, so nothing complains, and the rows are gone.
 
-A judge is more useful when it can compare the answer with the retrieved documents, and it can catch some errors. Treat it as one signal. The gate that decides whether money moves must be code that checks the real record, as in Fix 3.
-
-**3. Trusting model-written code or SQL.** A model can write code that calls a function that does not exist, or a query that does too much. Suppose a user says "clean up my old test orders" and the model writes `DELETE FROM orders WHERE status = 'test'`, but some real orders also carry that status. The query is valid, so nothing complains, and the rows are gone.
-
-Protect yourself in layers. Run generated SQL with a database account that can only read. Try generated code in a sandbox where a mistake cannot reach real data. For anything that writes or deletes, show the exact statement to a person first (Fix 6).
+Protect yourself in layers. Run generated SQL with a database account that can only read. Try generated code in a sandbox where a mistake cannot reach real data. For anything that writes or deletes, show the exact statement to a person first (Fix 4).
 
 Shorter ones:
 
-- **Validation of format only.** Valid JSON with an invented ID passes a schema check. Check the facts.
-- **Grounding on stale documents.** If the index still holds last year's 90-day policy, the model quotes it faithfully and cites a real document, and the answer is still wrong. Keep the documents current, and remove old versions.
+- **Checking only the format.** Valid JSON with an invented ID passes a format check. Fix 4 checks the facts.
 - **Letting untrusted text steer the model.** A document or web page can contain instructions that the model follows. Prompt injection is a topic of its own.
-- **No evaluation set.** Without one, every change is a guess.
 
 ## Which should you use?
 
-| Risk | Reach for |
+| Where it went wrong | Reach for |
 |---|---|
-| Wrong facts in answers | Grounding with retrieved sources |
-| Malformed output | Schema and validation |
-| Invented IDs or amounts | Check against the source of truth |
-| Invented citations | Verify each citation was supplied |
-| Irreversible actions | Human approval |
-| "Is it getting better?" | A fixed evaluation set |
+| A fact that lives in a system (order, balance, policy value) | **Let a tool return it,** and let the model only word it (Fix 1) |
+| The document was missing or out of date | **Fix the documents and the lookup,** and answer only above a minimum score (Fix 2) |
+| The answer changed what the document says | **Quote and verify,** or use a managed check against the documents (Fix 3) |
+| The model asks for an action | **A guard in code,** with approval by risk (Fix 4) |
+| "Is it getting better?" | **The sampled check on live answers** (diagnose step 3) |
 
-If you are not sure, start with the source-of-truth check on every action, because it limits the damage even when everything else fails.
+If you are not sure, start with the guard on every action (Fix 4), because it limits the damage even when everything else fails.
 
 ## The takeaway
 
-1. A model **predicts likely text**. It does not look facts up, so it can sound sure and be wrong.
-2. Treat model output as **untrusted input** until code has checked it.
-3. Layer the defenses: **ground** with sources, validate a **schema**, check **facts** and **citations**, allow "I don't know".
-4. Keep a **human** in the loop for actions that cannot be undone.
-5. **Log** everything and test on a **fixed set** built from real failures, because lower temperature and a second model do not fix this alone.
+1. A model writes the words that are most likely to come next. It does not look facts up, so it can sound sure and be wrong.
+2. A wrong answer starts in one of three places: the right fact **never reached the prompt**, the answer **changed** it, or the model **made something up**.
+3. Diagnose by saving a **record of every answer**, and asking it three simple questions. Then watch a sampled check for unsupported claims.
+4. Let **systems supply the facts**, fix the documents and the lookup, check statements against their documents, and put a **guard in front of every action**. The model proposes, code decides.

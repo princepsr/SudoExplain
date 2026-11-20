@@ -138,7 +138,7 @@ Also trim big tool results before adding them to the history, keeping only the p
 
 ## Fix 2: send only what the question needs
 
-- **Retrieve fewer, better chunks.** Choose the number by testing, not by habit: cut from 5 chunks to 3, run about 50 real questions through both versions, and compare the answers (a fixed evaluation set, as in [the hallucinations post](/posts/llm-hallucinations/)). If quality holds, you save 1,600 tokens on every call (2 chunks of 800). Making retrieval find the right text is a topic of its own.
+- **Retrieve fewer, better chunks.** Choose the number by testing, not by habit: cut from 5 chunks to 3, run about 50 real questions through both versions, and compare the answers. Cutting chunks can remove the one that held the fact, and then the model [makes something up](/posts/llm-hallucinations/). If quality holds, you save 1,600 tokens on every call (2 chunks of 800). Making retrieval find the right text is a topic of its own.
 - **Do not attach documents** to a message that does not need them.
 - **Keep the system prompt short.** Cut instructions that no longer earn their place.
 
