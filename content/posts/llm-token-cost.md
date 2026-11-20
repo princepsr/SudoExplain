@@ -167,7 +167,6 @@ after the call:
 - **Prompt caching.** Many providers charge less when a prompt starts with the same text they saw a moment ago. So put the stable content (instructions, reference material) **first**, and the changing content last. Check your provider's rules for how long a saved start lasts, how short a start can be, and what the discount is.
 - **Cache whole answers** for identical questions whose answer does not depend on who is asking.
 - **Route by difficulty.** Send simple tasks to a smaller, cheaper model, and use the large one only when needed.
-- **Batch work.** Some providers offer cheaper batch processing for jobs that can wait. Check whether yours does.
 
 ## When the fix goes wrong
 
@@ -208,11 +207,13 @@ Shorter ones:
 
 | Situation | Reach for |
 |---|---|
-| Long chats are the biggest cost | **A sliding window plus a summary** of older turns |
+| Long chats are the biggest cost | **A sliding window, trimmed in steps** (add a summary if old facts matter) |
 | Every call carries thousands of tokens of context | **Retrieve less,** and shorten the system prompt |
 | Agents or retries could loop | **Step limits, cost caps and a fixed number of retries** |
-| Repeated static instructions | **Prompt caching,** with stable content first |
-| Simple tasks on an expensive model | **Route to a smaller model** and measure quality |
+| One user or client could run up the bill | **Per-user token budgets** and a maximum answer length |
+| Repeated static instructions | **Prompt caching,** with stable content first and the start of the prompt unchanged |
+| The same questions repeat | **Cache whole answers,** only if they do not depend on who asks |
+| Simple tasks on an expensive model | **Route to a smaller model,** and measure the pass rate and the total cost |
 | You do not know where the money goes | **Log usage per feature, user and call** before changing anything |
 
 If you are not sure, log the token counts first.
