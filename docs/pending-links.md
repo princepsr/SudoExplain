@@ -14,7 +14,7 @@ A live post must never link to a draft, because the link would be dead. Where a 
 | `unbounded-thread-pool-queue` | "When the fix goes wrong", pitfall 3, last sentence: "a retry storm" | `/posts/cascading-failures-circuit-breaker/` | `cascading-failures-circuit-breaker` |
 | `connection-pool-exhausted` | "How to diagnose it", step 2 (thread dump): add "If threads are BLOCKED on a lock and not waiting for a connection, see" | `/posts/java-blocked-threads-lock-owner/` | `java-blocked-threads-lock-owner` |
 | `unbounded-thread-pool-queue` | "When the fix goes wrong", pitfall 2: add a sentence on threads stuck behind one lock | `/posts/java-blocked-threads-lock-owner/` | `java-blocked-threads-lock-owner` |
-| `llm-token-cost` | "Fix 2", first paragraph: "Making retrieval find the right text is a topic of its own" | `/posts/rag-wrong-answers/` | `rag-wrong-answers` |
+| `llm-token-cost` | "Fix 2", first bullet: "Making retrieval find the right text is a topic of its own" | `/posts/rag-wrong-answers/` | `rag-wrong-answers` |
 | `llm-token-cost` | "Fix 3", first bullet: "Stopping a runaway agent is a topic of its own" | `/posts/runaway-ai-agent/` | `runaway-ai-agent` |
 | `llm-token-cost` | "Fix 3", budgets bullet: "Rate limiting is a topic of its own" | `/posts/rate-limiting-token-bucket/` | `rate-limiting-token-bucket` |
 | `llm-hallucinations` | "How to diagnose it", step 1: "a request ID that follows the request through every service (a topic of its own)" | `/posts/correlation-id-logging/` | `correlation-id-logging` |
