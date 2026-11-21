@@ -61,6 +61,6 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 51 | Database | Slow LIKE '%text%' search: fix it with a GIN index | A search box ignores the index and scans the whole table | like-wildcard-search-gin-index | draft (outline only) |
 | 53 | Java | Java weak vs strong references: why WeakHashMap leaks | A `WeakHashMap` "cache" either empties itself on every GC or still leaks | java-weak-vs-strong-references | draft |
 | 52 | Database | Covering index: answer a query without touching the table | `SELECT *` forces a table visit for every row; an index-only scan, or `INCLUDE`, avoids it | covering-index-only-scan | idea (no file yet) |
-| 54 | Java | Many threads BLOCKED: find the lock owner in a thread dump | One slow thread holds a lock and every other thread queues behind it; no deadlock report appears | java-blocked-threads-lock-owner | draft |
+| 54 | Java | Java thread dump: find the lock owner of BLOCKED threads | One slow thread holds a lock and every other thread queues behind it; no deadlock report appears | java-thread-dump-find-lock-owner | done |
 
 Skipped on purpose: topics with no real production failure (what a URL is, what an index is in the abstract). A topic only earns a post if there is a bug people actually meet.

@@ -153,7 +153,7 @@ A bounded queue and a rejection policy are the right fix, but each piece has a c
 
 Even with a bounded queue the growth comes late. I ran a pool with 10 core threads, a maximum of 50 and a queue of 200, using tasks that never finish. Tasks 1 to 10 started threads. Tasks 11 to 210 went into the queue, so there were still 10 threads. Task 211 was the first to start an 11th thread. Thread 50 started with task 250, and task 251 was rejected.
 
-So the extra threads help only after 200 tasks are already waiting. If you want them to join early, use a small queue. If you do not need extra workers, make the core size and the maximum size the same number, as in Fix 1 (`10, 10`). Then the pool always has exactly 10 workers, and there is no growing to wait for.
+So the extra threads help only after 200 tasks are already waiting. If you want them to join early, use a small queue. If you do not need extra workers, make the core size and the maximum size the same number, as in Fix 1 (`10, 10`). Then the pool always has exactly 10 workers, and there is no growing to wait for. More threads do not help either when every task waits for the same lock. [Reading a thread dump](/posts/java-thread-dump-find-lock-owner/) shows who holds it.
 
 **2. Running the rejected task on the wrong thread.** `CallerRunsPolicy` makes the thread that submitted the task run it. That slows the producer, which is the goal. But some callers must never be slowed. Some servers use one thread to look after many users at once, switching quickly between them. If that thread runs a 2-second task itself, all of those users freeze for 2 seconds. Use `CallerRunsPolicy` only when the caller can afford to be busy. Otherwise use `AbortPolicy` and return an error.
 

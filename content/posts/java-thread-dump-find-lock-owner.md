@@ -1,9 +1,8 @@
 ---
-title: Many threads BLOCKED: find the lock owner in a thread dump
-date: 2026-11-14
-description: A hung Java service shows many BLOCKED threads and idle CPU. Learn to read a thread dump, follow the lock to its owner, and fix the slow work under it.
+title: "Java thread dump: find the lock owner of BLOCKED threads"
+date: 2026-11-21
+description: How to read a Java thread dump: what RUNNABLE, BLOCKED and WAITING mean, how to follow a lock to its owner, and a real editor freeze as an example.
 tags: java, concurrency, performance
-draft: true
 ---
 
 ## The question
@@ -19,7 +18,7 @@ None of the 200. The cause is the one thread they are all waiting for, and the d
 >
 > 1. What `RUNNABLE`, `BLOCKED` and `WAITING` mean in a thread dump
 > 2. How to follow a lock from the waiting threads to its **owner**
-> 3. Why the owner can look healthy, and how a real IDE freeze showed it
+> 3. Why the owner can look healthy, and how a real code-editor freeze showed it
 > 4. The fixes, and the two ways they go wrong
 
 ## First, what a thread dump says
@@ -32,7 +31,7 @@ A thread dump shows every thread's name, its **state**, and its **stack**: the c
 
 | State | What it means |
 |---|---|
-| `RUNNABLE` | Running, ready to run, or waiting for the operating system (the software that runs the computer, such as Windows) to finish a job like a network read. It does **not** mean the thread uses CPU |
+| `RUNNABLE` | Running, ready to run, or waiting for the operating system to finish a job like a network read. It does **not** mean the thread uses CPU |
 | `BLOCKED` | Waiting to enter a `synchronized` block that another thread holds |
 | `WAITING`, `TIMED_WAITING` | Waiting for a signal, or for a time limit such as `sleep`. Not waiting for a `synchronized` lock |
 
@@ -86,7 +85,7 @@ The lock is not the bug. Three one-millisecond jobs would finish at once. The bu
 
 ## Read the dump in four steps
 
-I captured a dump of the running program with `jstack <pid>`. It is a tool from the JDK (Java Development Kit, the tools that come with Java), and it prints the same dump as `jcmd <pid> Thread.print`. The `<pid>` is the process id, the number that names a running program. Running `jcmd` with no arguments lists the Java programs and their ids. This is the real output, trimmed to the four threads and their first lines:
+I captured a dump of the running program with `jstack <pid>`. It is a tool from the JDK (Java Development Kit, the tools that come with Java), and it prints the same dump as `jcmd <pid> Thread.print`. The `<pid>` is the program's process id, which `jcmd` with no arguments lists. This is the real output, trimmed to the four threads and their first lines:
 
 ```text
 "git-loader"
@@ -111,11 +110,11 @@ I captured a dump of the running program with `jstack <pid>`. It is a tool from 
 	- waiting to lock <0x0000000628202858> (a java.lang.Object)
 ```
 
-A **monitor** is the name the JVM (Java Virtual Machine, the program that runs your Java code) uses for the lock behind `synchronized`. Now follow the lock:
+Every Java object has a built-in lock, called its **monitor**, and `synchronized` takes it. So "BLOCKED (on object monitor)" means the thread is waiting for an object's lock. Now follow the lock:
 
 **1. Count the states.** A few `BLOCKED` threads are normal. Dozens or hundreds, with idle CPU, mean a queue behind one lock.
 
-**2. Group the waiting threads by lock.** Each `waiting to lock <0x...>` line names the lock it wants. The long number is the lock's address in memory, and it works as the lock's name. Three threads with the same number are in the same queue. On Linux or macOS, this prints each lock and how many threads wait for it. `grep` keeps the matching lines, `sort` puts equal lines together, and `uniq -c` counts them:
+**2. Group the waiting threads by lock.** Each `waiting to lock <0x...>` line names the lock it wants. The long number is the lock's address in memory, and it works as the lock's name. Three threads with the same number are in the same queue. On Linux or macOS, this prints each lock and how many threads wait for it:
 
 ```bash
 grep "waiting to lock" dump.txt | sort | uniq -c
@@ -131,22 +130,22 @@ Take two or three dumps ten seconds apart. If the same thread owns the same lock
 
 ## How this differs from a deadlock
 
-In a **deadlock**, threads wait for each other in a circle, and none of them can ever continue. [The thread deadlock post](/posts/java-thread-deadlock/) shows it, and the JVM prints a "Found one Java-level deadlock" report for it.
+In a **deadlock**, threads wait for each other in a circle, and none of them can ever continue. The JVM prints a "Found one Java-level deadlock" report for it. Deadlocks are a topic of their own.
 
 Here there is no circle. The owner is still moving, only slowly. So the JVM prints no report, and you follow the lock yourself with the four steps above.
 
 [The connection pool post](/posts/connection-pool-exhausted/) is close in topic too. There, threads wait in a queue for a database connection, and a dump shows them as `waiting on condition`, not `BLOCKED`. The waiting is real in both cases, but here the queue is a `synchronized` lock.
 
-## A real example: an IDE freeze
+## A real example: a code-editor freeze
 
 The same pattern appeared in a real freeze of IntelliJ IDEA, a Java editor. Its dump had 140 threads on Java 25.0.4 on Windows, and 17 were `BLOCKED`. This dump prints the owner on the waiting thread's line, as `owned by`, so step 3 is shorter. Trimmed to the key lines:
 
 ```text
 "DefaultDispatcher-worker-17"
-   State: RUNNABLE (in native)
+   State: RUNNABLE
 	at java.lang.ProcessImpl.create(Native Method)
 	at java.lang.ProcessBuilder.start(ProcessBuilder.java:1078)
-	at git4idea.commands.GitHandler.start(GitHandler.java:501)
+	at git4idea.commands.GitLineHandler$1.<init>(GitLineHandler.java:154)
 	...
 
 "CustomNpmRegistryService"
@@ -184,7 +183,7 @@ Apply the steps:
 
 The npm helper, the build system and the CPU check do not need each other. They queued only because all of them needed to start a program.
 
-What I could not verify: why starting `git` was slow. Antivirus scanning the program is a common cause on company laptops, but the dump cannot prove it. I also did not trace why the editor window itself froze. The dump shows what the background threads waited for.
+What the thread dump does not tell us: why starting `git` was slow. It shows only that the operating system took a long time to start it, not why. It also does not explain why the editor window itself froze.
 
 ## Fix 1: do the slow work outside the lock
 
@@ -209,7 +208,22 @@ I ran four threads that each do two seconds of slow work. After half a second al
 
 ## Fix 2: stop waiting forever
 
-A thread waiting for `synchronized` waits without a limit. A `ReentrantLock` (a lock class in `java.util.concurrent.locks`) can give up after a time limit with `tryLock`. Then a slow owner becomes a quick failure you can log and retry, not a hang. [The deadlock post](/posts/java-thread-deadlock/) shows the code. The cost is that every caller must handle "I did not get the lock".
+A thread waiting for `synchronized` waits without a limit. A `ReentrantLock` (a lock class in `java.util.concurrent.locks`) can give up after a time limit with `tryLock`. Then a slow owner becomes a quick failure you can log and retry, not a hang. The cost is that every caller must handle "I did not get the lock".
+
+```java
+// wait at most 1 second for the lock
+if (LOCK.tryLock(1, TimeUnit.SECONDS)) {
+    try {
+        work();
+    } finally {
+        LOCK.unlock();
+    }
+} else {
+    // gave up: log it, then retry or fail fast
+}
+```
+
+In a test where another thread held the lock for 5 seconds, this gave up after about 1000 ms (Java 21.0.2). [TryLock.java](/code/java-thread-dump-find-lock-owner/TryLock.java) is the whole program.
 
 ## Fix 3: stop unrelated jobs sharing a lock
 
@@ -230,14 +244,9 @@ Two withdrawals of 30 happened, and the balance is 70 and not 40. The read and t
 
 **What to do instead.** Keep the check and the change together under one short lock. Do only the slow call outside. In steps: lock, check and reserve the amount, unlock, make the slow call, lock again, confirm or undo the reservation.
 
-**2. Adding more threads.** The thinking: "200 threads are blocked, so a bigger pool of 400 will cope." A **pool** is a fixed group of threads that take jobs from a queue. Suppose the owner holds the lock for 1 second each time, and every job needs it. Then only one job finishes per second, however many threads you have. With 400 threads, there are just 399 waiting instead of 199. Each waiting thread also keeps its own stack in memory, so more threads add cost and fix nothing.
+**2. Adding more threads.** The thinking: "200 threads are blocked, so a bigger pool of 400 will cope." A **pool** is a fixed group of threads that take jobs from a queue. If the owner holds the lock for 1 second and every job needs it, only one job finishes per second, however many threads you have. With 400 threads, 399 wait instead of 199, and each one also uses memory for its stack. More threads add cost and fix nothing. Shorten the time under the lock instead (Fix 1).
 
-**What to do instead.** Shorten the time under the lock, as in Fix 1. More threads only help when the work can run at the same time.
-
-Smaller traps:
-
-- **Trusting one dump.** A single snapshot can catch a thread that holds the lock for a millisecond. Look for the same owner in several dumps.
-- **Blaming the owner's own code.** If the owner is waiting on a remote service, the cause is that service. Read the top lines of its stack to see what it waits for.
+**3. Blaming the owner's own code.** If the owner is waiting on a remote service, the cause is that service. Read the top lines of the owner's stack to see what it waits for.
 
 ## Which should you use?
 
@@ -256,9 +265,10 @@ Save the program above as `SlowLock.java` and run `java SlowLock.java`. In a sec
 
 Files from this post:
 
-- [Fixed.java](/code/java-blocked-threads-lock-owner/Fixed.java): the whole program with the slow work moved outside the lock (Fix 1)
-- [slowlock-jstack-java21.txt](/code/java-blocked-threads-lock-owner/slowlock-jstack-java21.txt): the thread dump I captured from it
-- [ide-freeze-thread-dump-trimmed.txt](/code/java-blocked-threads-lock-owner/ide-freeze-thread-dump-trimmed.txt): the trimmed dump from the IDE freeze
+- [Fixed.java](/code/java-thread-dump-find-lock-owner/Fixed.java): the whole program with the slow work moved outside the lock (Fix 1)
+- [slowlock-jstack-java21.txt](/code/java-thread-dump-find-lock-owner/slowlock-jstack-java21.txt): the thread dump I captured from it
+- [TryLock.java](/code/java-thread-dump-find-lock-owner/TryLock.java): the `tryLock` test from Fix 2
+- [ide-freeze-thread-dump-trimmed.txt](/code/java-thread-dump-find-lock-owner/ide-freeze-thread-dump-trimmed.txt): the trimmed dump from the editor freeze
 
 > [!WARNING]
 > The program runs for ten minutes. Stop it with Ctrl+C when you are done, and run it only on your own machine.

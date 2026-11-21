@@ -225,6 +225,8 @@ Whatever the cause, set a **short connection timeout** (a few seconds rather tha
     at com.example.OrderRepository.save(OrderRepository.java:42)
 ```
 
+If the threads are `BLOCKED` on a lock and not waiting for a connection, [follow the lock to its owner](/posts/java-thread-dump-find-lock-owner/) instead.
+
 **3. Find who is holding connections.** Ask the database what each connection is doing. In PostgreSQL:
 
 ```sql
