@@ -18,6 +18,6 @@ A live post must never link to a draft, because the link would be dead. Where a 
 | `llm-hallucinations` | "Fix 2", last paragraph: "Why a lookup itself fails is a topic of its own" | `/posts/rag-wrong-answers/` | `rag-wrong-answers` |
 | `llm-hallucinations` | "Fix 4", last paragraph: "Money rounding is a topic of its own" | `/posts/java-bigdecimal-money-rounding/` | `java-bigdecimal-money-rounding` |
 | `llm-hallucinations` | "When the fix goes wrong", shorter ones: "Prompt injection is a topic of its own" | `/posts/prompt-injection/` | `prompt-injection` |
-| `java-thread-dump-find-lock-owner` | "How this differs from a deadlock": "Deadlocks are a topic of their own" | `/posts/java-thread-deadlock/` | `java-thread-deadlock` |
+| `java-thread-deadlock` | "How this differs from a database deadlock": "A database can have the same circle between two transactions" | `/posts/database-deadlocks/` | `database-deadlocks` |
 
 Also: when a draft is published, link back to it from 1 or 2 older posts, and make sure it links to 2 or 3 related posts.

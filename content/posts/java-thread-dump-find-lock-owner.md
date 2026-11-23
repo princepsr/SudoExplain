@@ -130,7 +130,7 @@ Take two or three dumps ten seconds apart. If the same thread owns the same lock
 
 ## How this differs from a deadlock
 
-In a **deadlock**, threads wait for each other in a circle, and none of them can ever continue. The JVM prints a "Found one Java-level deadlock" report for it. Deadlocks are a topic of their own.
+In a **deadlock**, threads wait for each other in a circle, and none of them can ever continue. The JVM prints a "Found one Java-level deadlock" report for it. [Deadlocks](/posts/java-thread-deadlock/) are a topic of their own.
 
 Here there is no circle. The owner is still moving, only slowly. So the JVM prints no report, and you follow the lock yourself with the four steps above.
 

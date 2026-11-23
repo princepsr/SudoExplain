@@ -35,7 +35,7 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 25 | AI | LLM token cost: why bills explode and how to cap them | Tokens, context growth and retry loops | llm-token-cost | done |
 | 26 | Java | Java GC pauses: why latency spikes and how to find them | Stop-the-world pauses freeze requests every few minutes | java-gc-pauses | draft |
 | 27 | Java, containers | Java OOMKilled in Docker (exit code 137): why it dies | The container limit kills the JVM although the heap looks healthy | java-docker-oomkilled | draft |
-| 28 | Java | Java thread deadlock: find it with a thread dump | Two threads wait for each other's locks and the service hangs | java-thread-deadlock | draft |
+| 28 | Java | Java thread deadlock: find it with a thread dump | Two threads wait for each other's locks and the service hangs | java-thread-deadlock | done |
 | 29 | Java, backend | Blocked event loop in Netty: why one slow call freezes all | A blocking call on an event-loop thread stalls every request | blocked-event-loop | draft |
 | 30 | Java | NoSuchMethodError in production: Java dependency conflicts | Two library versions on the classpath; it works locally and fails after deploy | java-dependency-conflict | draft |
 | 31 | Networking | DNS TTL: why traffic still hits the old server | A DNS change does not take effect because of TTLs and caches (including the JVM's) | dns-ttl-caching | draft |
