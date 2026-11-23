@@ -1,6 +1,6 @@
 ---
 title: Java thread deadlock: find it with a thread dump
-date: 2026-11-23
+date: 2026-11-24
 description: A Java thread deadlock hangs requests while CPU stays idle. See how to find it with a thread dump, read the report, and fix it with lock ordering.
 tags: java, concurrency
 ---
