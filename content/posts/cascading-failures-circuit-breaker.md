@@ -152,8 +152,8 @@ A circuit breaker works like the fuse box in a house. When something goes wrong,
 3. **Half-open.** After a wait (say 30 seconds), the breaker lets a few **trial calls** through. If they work, it closes again. If one fails, it opens again for another wait.
 
 <figure>
-<div class="diagram" style="max-width:560px;margin-inline:auto">
-<svg viewBox="0 0 420 330" style="min-width:0;width:100%" role="img" aria-label="Animated diagram of a circuit breaker between your service and service B. It counts recent calls. At first the breaker is closed and calls pass through. When service B breaks, calls fail and are counted. When half of the recent calls have failed, the breaker opens and rejects calls without sending them. After a wait it goes half-open and lets one trial call through. The trial works, so it closes again and the count starts from zero. The loop repeats.">
+<div class="diagram" style="max-width:640px;margin-inline:auto">
+<svg viewBox="0 64 420 268" style="min-width:0;width:100%" role="img" aria-label="Animated diagram of a circuit breaker between your service and service B. It counts recent calls. At first the breaker is closed and calls pass through. When service B breaks, calls fail and are counted. When half of the recent calls have failed, the breaker opens and rejects calls without sending them. After a wait it goes half-open and lets one trial call through. The trial works, so it closes again and the count starts from zero. The loop repeats.">
   <g font-family="var(--sans)" font-size="14" fill="currentColor" stroke="currentColor" stroke-width="2">
     <rect x="10" y="130" width="100" height="70" rx="8" fill="none"/>
     <rect x="165" y="105" width="90" height="120" rx="8" fill="none"/>
