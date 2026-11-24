@@ -16,7 +16,7 @@ Status: `done` = published, `draft` = written, waiting for review.
 | 6 | Java | Race condition in Java: check-then-act explained | "If absent, put" loses data under load | race-condition-check-then-act | done |
 | 7 | Java, database | N+1 query problem: why one page runs 500 queries | One page triggers hundreds of queries after a data growth | n-plus-one-query-problem | draft |
 | 8 | Java | Java BigDecimal vs double for money: rounding errors | Floating point and rounding in money | java-bigdecimal-money-rounding | draft |
-| 9 | Backend | Cascading failures: timeouts, retries, circuit breakers | One slow dependency takes down every service; retries make it worse | cascading-failures-circuit-breaker | draft |
+| 9 | Backend | Cascading failures: timeouts, retries, circuit breakers | One slow dependency takes down every service; retries make it worse | cascading-failures-circuit-breaker | done |
 | 10 | Backend | Idempotency keys: stop retries from charging twice | A timed-out request retried charges twice | idempotency-key-double-charge | draft |
 | 11 | Backend, scaling | Spring @Scheduled job runs twice on multiple servers | Scale out and every server runs the cron job | scheduled-job-runs-multiple-times | draft |
 | 12 | Backend | Poison message: how one bad message blocks a queue | One bad message blocks a queue forever | poison-message-dead-letter-queue | draft |

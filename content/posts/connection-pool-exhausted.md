@@ -257,7 +257,7 @@ If the real problem is a leak, a bigger pool only delays the failure. Say a bug 
 
 **2. Retrying on pool timeout.** The error says "try again later", so a retry looks natural. But the retry asks the same full pool for a connection. Say the pool has 10 connections, all busy, and 100 requests are waiting. They time out, and each is retried twice more, so 3 attempts each. Up to 3 x 100 = 300 requests now queue for the same 10 connections. The queue gets longer exactly when the system is struggling, and the pool may never catch up.
 
-**What to do instead:** do not retry on a pool timeout. If a retry is needed, do it at one layer only, with a delay that grows and a limit on attempts.
+**What to do instead:** do not retry on a pool timeout. If a retry is needed, do it at one layer only, with a delay that grows and a limit on attempts. [The cascading failures post](/posts/cascading-failures-circuit-breaker/) shows how retries at every layer multiply.
 
 ## Which should you use?
 

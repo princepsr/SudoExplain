@@ -1,0 +1,13 @@
+request 1 took 318 ms
+request 2 took 302 ms
+request 3 took 302 ms
+request 4 took 306 ms
+request 5 took 306 ms
+request 6 took 307 ms
+HEALTH CHECK took 1 ms
+request 7 took 307 ms
+request 8 took 305 ms
+request 9 took 303 ms
+request 10 took 302 ms
+request 11 took 307 ms
+request 12 took 301 ms

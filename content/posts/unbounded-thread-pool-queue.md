@@ -159,7 +159,7 @@ So the extra threads help only after 200 tasks are already waiting. If you want 
 
 **3. Rejecting without backoff.** *Backoff* means waiting before you try again, a little longer each time. Suppose the pool can finish 100 tasks per second and 200 arrive. Half are rejected, and each rejected client retries at once. The next second brings those 100 retries plus 200 new tasks. That is 300 tasks for a pool that can do 100. Rejecting made the load worse.
 
-Return 503 with a `Retry-After` header and make clients wait. Better still, clients should wait longer after each failure, with a random delay added so they do not all return together. Retries that make an outage worse, called a retry storm, are a topic of their own.
+Return 503 with a `Retry-After` header and make clients wait. Better still, clients should wait longer after each failure, with a random delay added so they do not all return together. Retries that make an outage worse are called a [retry storm](/posts/cascading-failures-circuit-breaker/).
 
 ## Which should you use?
 
